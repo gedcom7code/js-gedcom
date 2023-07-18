@@ -273,6 +273,14 @@ class GEDCStruct {
     return records;
   }
   
+  /**
+   * `GEDCStruct.fromJSON(s.toJSON())` gives a copy of `s`
+   * `GEDCStruct.fromJSON(a.map(s=>s.toJSON()))` gives a copy of `a`
+   * 
+   * @param {Object|Object[]) o - The result of JSON.parse or GEDCStruct.toJSON
+   * @param {Object<string,GEDCStruct>} ids - href lookups; invoke without this unless you split one dataset across multiple JSON arrays
+   * @patam {GEDCStruct} sup - parent object; invoke without this unless you split one dataset across multiple JSON objects
+   */
   static fromJSON(o, ids, sup) {
     const top = !ids
     if (top) ids = {}
