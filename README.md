@@ -24,11 +24,24 @@ For internal use, we also track the following:
 - `references`, a (usually empty) list of other structures that this is the `payload` of
 - optionally `id`, a recommended xref_id to use in serializing pointers to this structure
 
+Both GEDCStruct
+and the list of GEDCStruct returned by `fromJSON` and `fromString`
+have two utility methods, `querySelect` and `querySelectAll`,
+modeled after the corresponding methods in DOM Elements
+but using GEDCOM dot-notation paths instead. In particular,
+
+- `XYZ` matches any structure with tag `XYZ`
+- `.XYZ` matches any top-level structure with tag `XYZ`
+- `ABC.XYZ` matches any structure with tag `XYZ` that is a substructure of a structure with tag `ABC`
+- `ABC..XYZ` matches any structure with tag `XYZ` that contained within a structure with tag `ABC`
+
 GEDC parsing takes care of converting xref_id to pointers
 and managing CONT and CONC pseudostructures;
 GEDC serializing handles these going the other way.
 
-GEDC parsing and serializing both accept a configuration object with the following keys:
+GEDC parsing and serializing both accept a configuration object with the following keys.
+
+Parsing configurations:
 
 - `len` = `0`{.js}
   
@@ -62,11 +75,6 @@ GEDC parsing and serializing both accept a configuration object with the followi
   that is, a carriage return or line feed
   followed by whitespace.
 
-- `newline` = `'\n'`{.js}
-  
-  A string to insert between lines when serializing.
-  Should match `linesep`.
-
 - `delim` = `/.*/`{.js}
   
   A regex to limit what is considered a delimiter.
@@ -79,16 +87,37 @@ GEDC parsing and serializing both accept a configuration object with the followi
   
   A regex to limit permitted string payloads.
 
+- `zeros` = `false`
+  
+  If `true`, allow leading zeros on levels (e.g. `00` or `01`)
+
+Serializing configurations:
+
+- `newline` = `'\n'`{.js}
+  
+  A string to insert between lines when serializing.
+  Should match `linesep`.
+
+- `escapes` = `false`
+  
+  If `true`, serialize payloads beginning `@#` as `@#` instead of `@@#`.
+  Both always deserialize as the same thing.
+
 Two special config objects are provided to match the GEDCOM 5.x and FamilySearch GEDCOM 7.x specs:
 
 ```js
+/** GEDCOM 5.x-compatible configuration */
 const g5ConfGEDC = {
   len: 255,
   tag: /^[0-9a-z_A-Z]{1,31}$/u,
   xref: /^[0-9a-z_A-Z][^\p{Cc}@]{0,19}$/u,
   linesep: /^[\r\n][\r\n \t]*$/,
   delim: /^ $/,
+  zeros: false,
+  escapes: true,
 }
+
+/** GEDCOM 7.x-compatible configuration */
 const g7ConfGEDC = {
   len: -1,
   tag: /^([A-Z]|_[0-9_A-Z])[0-9_A-Z]*$/u,
@@ -96,8 +125,14 @@ const g7ConfGEDC = {
   linesep: /^(\r\n?|\n\r?)$/,
   delim: /^ $/,
   payload: /^.+$/,
+  zeros: false,
+  escapes: false,
 }
 ```
+
+As of commit 34dd91ad90ce5e8301e943b4d559a603028b45c9 (2023-07-18), the implementation round-trips `maximal70.ged` from <https://gedcom.io/tools/>; that is maximal70.ged → fromString → toJSON → fromJSON → toString == maximal70.ged.
+Note that this does not constitute an exhaustive test
+and the code may contain bugs.
 
 # FamilySearch GEDCOM 7 Type Checker
 

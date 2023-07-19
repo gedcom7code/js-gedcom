@@ -207,7 +207,7 @@ class GEDCStruct {
     var lre = /([0-9]+)([ \t\p{Zs}]+)(?:@((?:[^@#\p{Cc}]|\t)(?:[^@\p{Cc}]|\t)*)@([ \t\p{Zs}]+))?([^@\p{Cc}\p{Z}][^\p{Cc}\p{Z}]*)(?:([ \t\p{Zs}]+)(?:@((?:[^@#\p{Cc}]|\t)(?:[^@\p{Cc}]|\t)*)@|((?:[^@\n\r]|@[@#])[^\n\r]*)))?(?:([\n\r]\p{WSpace}*)|$)/gu;
     var context = [];
     var records = [];
-    var ids = {};
+    var ids = {VOID: null};
     var line = 0
     var lastidx = 0
     if (input.startsWith('\ufeff')) input = input.substr(1)
@@ -270,6 +270,13 @@ class GEDCStruct {
       if (i) ids[i] = st;
     }
     records.forEach(x => x.fixPtrs(ids, logger));
+    records.querySelectorAll = function*(path) {
+      for(let e of this)
+        yield* e.querySelectorAll(path)
+    }
+    records.querySelector = function(path) {
+      return this.querySelectorAll(path).next().value
+    }
     return records;
   }
   
@@ -287,6 +294,13 @@ class GEDCStruct {
     if (Array.isArray(o)) {
       const recs = o.map(e => GEDCStruct.fromJSON(e, ids, sup))
       if (top) recs.forEach(x => x.fixPtrs(ids))
+      recs.querySelectorAll = function*(path) {
+        for(let e of this)
+          yield* e.querySelectorAll(path)
+      }
+      recs.querySelector = function(path) {
+        return this.querySelectorAll(path).next().value
+      }
       return recs
     }
     const ans = new GEDCStruct(o.tag, sup, o.href, o.text, o.id)
@@ -295,6 +309,46 @@ class GEDCStruct {
     if (top) ans.fixPtrs(ids)
     return ans
   }
+  
+  /**
+   * Evaluates a query for a path in augmented GEDC dot notation,
+   * returning the first match or `undefined`.
+   * @see @{link querySelectorAll} for more.
+   *
+   * @returns {GEDCStruct} the first found structure, or undefined if not found
+   */
+  querySelector(path) {
+    return this.querySelectorAll(path).next().value
+  }
+  
+  /**
+   * Evaluates a query for a path in augmented GEDC dot notation:
+   * 
+   * - "HEAD.GEDC" means any structure with tag "GEDC" that is a substructure of a structure with tag "HEAD"
+   * - ".HEAD.GEDC" means any structure with tag "GEDC" that is a substructure of a top-level structure with tag "HEAD"
+   * - "HEAD..GEDC" means any structure with tag "GEDC" that is a descendant of a structure with tag "HEAD"
+   * 
+   * @generator
+   * @yields {GEDCStruct} the next found structure
+   */
+  *querySelectorAll(path, idxs) {
+    if (!idxs) idxs = [0]
+    let nextIdxs = new Set()
+    for(let i of idxs) {
+      if (path[i] !== '.') nextIdxs.add(i)
+      let next = path.indexOf('.',i+1)
+      if (next == -1) next = undefined
+      let want = path.substring(i + (path[i] === '.'), next)
+      if (want == this.tag) {
+        if (!next) yield this
+        else nextIdxs.add(next + 2*(path[next+1] == '.'))
+      }
+    }
+    if (nextIdxs.size > 0) {
+      for(let e of this.sub) yield* e.querySelectorAll(path, nextIdxs)
+    }
+  }
+  
 }
 
 /** GEDCOM 5.x-compatible configuration */
