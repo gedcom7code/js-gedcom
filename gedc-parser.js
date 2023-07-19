@@ -199,12 +199,13 @@ class GEDCStruct {
    * @return {GEDCStructure[]}
    */
   static fromString(input, config, logger) {
-    // level: [0-9]+
-    // delim: [ \t\p{Zs}]+
-    // xref: (?:[^@#\p{Cc}]|\t)(?:[^@\p{Cc}]|\t)*
-    // tag: [^@\p{Cc}\p{Z}][^\p{Cc}\p{Z}]*
-    // (level)(delim)(?:@(xref)@(delim))?(tag)(?:(delim)(?:@(xref)@|(payload)))?(?:(linesep)|$)
-    var lre = /([0-9]+)([ \t\p{Zs}]+)(?:@((?:[^@#\p{Cc}]|\t)(?:[^@\p{Cc}]|\t)*)@([ \t\p{Zs}]+))?([^@\p{Cc}\p{Z}][^\p{Cc}\p{Z}]*)(?:([ \t\p{Zs}]+)(?:@((?:[^@#\p{Cc}]|\t)(?:[^@\p{Cc}]|\t)*)@|((?:[^@\n\r]|@[@#])[^\n\r]*)))?(?:([\n\r]\p{WSpace}*)|$)/gu;
+    const reL = /[0-9]+/u.source
+    const reD = /[ \t\p{Zs}]+/u.source
+    const reX = /(?:[^@#\p{Cc}]|\t)(?:[^@\p{Cc}]|\t)*/u.source
+    const reT = /[^@\p{Cc}\p{Z}][^\p{Cc}\p{Z}]*/u.source
+    const reN = /(?:[\n\r]\p{WSpace}*|$)/u.source
+    const reP = /(?:[^@\n\r]|@[@#])[^\n\r]*/u.source
+    const lre = new RegExp(`(${reL})(${reD})(?:@(${reX})@(${reD}))?(${reT})(?:(${reD})(?:@(${reX})@|(${reP})))?(${reN})`, "gu")
     var context = [];
     var records = [];
     var ids = {VOID: null};
