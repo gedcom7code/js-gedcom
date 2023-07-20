@@ -28,6 +28,13 @@ class GEDCStruct {
   #ref = []
   #id
   
+  /** Getter for private temporary storage: this structures' superstructure */
+  get superstruct() { return this.#sup; }
+  /** Getter for private temporary storage: structures pointing to this one */
+  get references() { return Object.freeze([...this.#ref]); }
+  /** Getter for private temporary storage: recommended xref_id for pointers */
+  get xref_id() { return this.#id; }
+  
   /**
    * @param {string} tag
    * @param {GEDCStruct} sup - the superstructure; sup.sub will contain this unless sup is null
@@ -314,7 +321,7 @@ class GEDCStruct {
   /**
    * Evaluates a query for a path in augmented GEDC dot notation,
    * returning the first match or `undefined`.
-   * @see @{link querySelectorAll} for more.
+   * @see {@link querySelectorAll} for more.
    *
    * @returns {GEDCStruct} the first found structure, or undefined if not found
    */
