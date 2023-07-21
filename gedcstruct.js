@@ -49,8 +49,12 @@ class GEDCStruct {
     if (ptr instanceof GEDCStruct) {
       ptr.#ref.push(this)
       this.payload = ptr
-    } else if (ptr !== undefined) {
+    } else if (ptr) {
       this.ptr = ptr // temporary, will be removed by fixPtrs
+    } else if (str || 'string' == typeof str) {
+      this.payload = str
+    } else if (ptr !== undefined) {
+      this.ptr = ptr
     } else {
       this.payload = str
     }
@@ -72,7 +76,7 @@ class GEDCStruct {
       delete this.ptr
       if (this.payload) this.payload.#ref.push(this)
     } else if ('ptr' in this) {
-      if (logger) logger(`pointer to undefined xref_id @${this.ptr}@`)
+      logger?.(`pointer to undefined xref_id @${this.ptr}@`)
       delete this.ptr
       this.payload = null
     }
@@ -211,7 +215,7 @@ class GEDCStruct {
     const reX = /(?:[^@#\p{Cc}]|\t)(?:[^@\p{Cc}]|\t)*/u.source
     const reT = /[^@\p{Cc}\p{Z}][^\p{Cc}\p{Z}]*/u.source
     const reN = /(?:[\n\r]\p{WSpace}*|$)/u.source
-    const reP = /(?:[^@\n\r]|@[@#])[^\n\r]*/u.source
+    const reP = /(?:(?:[^@\n\r]|@[@#])[^\n\r]*)?/u.source
     const lre = new RegExp(`(${reL})(${reD})(?:@(${reX})@(${reD}))?(${reT})(?:(${reD})(?:@(${reX})@|(${reP})))?(${reN})`, "gu")
     var context = [];
     var records = [];
@@ -225,50 +229,50 @@ class GEDCStruct {
       if (p && p.length > 1 && p[0] == '@' && p[1] == '@') p = p.substr(1)
       if (logger) {
         if (match.index != lastidx)
-          logger(`${line}: unable to parse ${JSON.stringify(match.input.substring(lastidx,match.index))}`)
+          logger?.(`${line}: unable to parse ${JSON.stringify(match.input.substring(lastidx,match.index))}`)
         if (!config.zeros && l.length > 1 && l[0] == '0')
-          logger(`${line}: leading zeros not permitted in level`)
+          logger?.(`${line}: leading zeros not permitted in level`)
         if (config.delim) {
           if (!config.delim.test(d1))
-            logger(`${line}: invalid delimiter ${JSON.stringify(d1)}`)
+            logger?.(`${line}: invalid delimiter ${JSON.stringify(d1)}`)
           if (d2 !== undefined && !config.delim.test(d2))
-            logger(`${line}: invalid delimiter ${JSON.stringify(d2)}`)
+            logger?.(`${line}: invalid delimiter ${JSON.stringify(d2)}`)
           if (d3 !== undefined && !config.delim.test(d3))
-            logger(`${line}: invalid delimiter ${JSON.stringify(d3)}`)
+            logger?.(`${line}: invalid delimiter ${JSON.stringify(d3)}`)
         }
         if (config.tag && !config.tag.test(t))
-          logger(`${line}: invalid tag ${JSON.stringify(t)}`)
+          logger?.(`${line}: invalid tag ${JSON.stringify(t)}`)
         if (config.xref) {
           if (i !== undefined && !config.xref.test(i))
-            logger(`${line}: invalid xref_id ${JSON.stringify(i)}`)
+            logger?.(`${line}: invalid xref_id ${JSON.stringify(i)}`)
           if (x !== undefined && !config.xref.test(x))
-            logger(`${line}: invalid pointer ${JSON.stringify(x)}`)
+            logger?.(`${line}: invalid pointer ${JSON.stringify(x)}`)
         }
         if (config.linesep && n && !config.linesep.test(n))
-          logger(`${line}: invalid line separator ${JSON.stringify(n)}`)
+          logger?.(`${line}: invalid line separator ${JSON.stringify(n)}`)
         if (config.payload && n && !config.payload.test(p))
-          logger(`${line}: invalid string payload ${JSON.stringify(p)}`)
+          logger?.(`${line}: invalid string payload ${JSON.stringify(p)}`)
         if (config.len > 0 && all.length > config.len)
-          logger(`${line}: line has ${all.length} characters, but only ${config.len} permitted`)
+          logger?.(`${line}: line has ${all.length} characters, but only ${config.len} permitted`)
       }
       lastidx = match.index + all.length
       var level = Number(match[1]);
       if (level > context.length) {
-        if (logger) logger(`${line}: level ${level} cannot follow level ${context.length-1}`)
+        logger?.(`${line}: level ${level} cannot follow level ${context.length-1}`)
         continue
       }
       context.length = level
       if (t == "CONT" || t == "CONC") {
         if (context[level-1].payload instanceof GEDCStruct || 'ptr' in context[level-1]) {
-          if (logger) logger(`${line}: ${t} cannot follow pointer`)
+          logger?.(`${line}: ${t} cannot follow pointer`)
         } else if (context[level-1].sub.length > 0) {
-          if (logger) logger(`${line}: ${t} cannot follow substructure`)
+          logger?.(`${line}: ${t} cannot follow substructure`)
         }
         if (context[level-1].payload === undefined) context[level-1].payload = ''
         if (p === undefined) p = ''
         if (t == 'CONT') context[level-1].payload += '\n' + p
         else if ('len' in config && config.len < 0) {
-          if (logger) logger(`${line}: CONC not permitted`)
+          logger?.(`${line}: CONC not permitted`)
         } else context[level-1].payload += p
         continue;
       }
