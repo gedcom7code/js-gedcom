@@ -5,6 +5,40 @@ which are handled by separate module files to facilitate uses which do not need 
 This repository does not currently handle different character sets.
 It assumes you have correctly parsed bytes into a JavaScript string before processing.
 
+# Status
+
+- [*] Tag-oriented layer
+    - [*] Tag-oriented parser
+        - [*] With CONT and CONC handling
+        - [*] With multiple dialects
+    - [*] Manual creation of structures
+    - [*] Tag-oriented JSON serializer/deserializer
+- [ ] Type-aware layer
+    - [*] Parse spec from <https://github.com/FamilySearch/GEDCOM-registries>
+    - [*] Parse tag-oriented into type-aware
+        - [*] Context-aware structure type
+            - [*] Error for out-of-place standard tags
+            - [ ] Error for cardinality violations
+        - [*] Structure-type-aware payload parsing
+            - [*] Error for malformed payloads
+            - [*] Error for enumeration set membership violations
+            - [ ] Error for pointed-to type violations
+        - [*] Support extensions, schema
+            - [*] Warn about undocumented, unregistered, aliased, and relocated
+        - [ ] Warn about deprecations
+        - [ ] Warn about not-recommended patterns
+    - [ ] Manual creation of structures
+        - [*] Creation, pointer handling, etc
+        - [ ] Error checking
+    - [ ] Serialize to tag-oriented
+        - [ ] Schema deduction
+        - [ ] Serialization
+    - [ ] Type-oriented JSON serializer/deserializer
+        - [*] Datatype serialization/deserialization
+        - [ ] Structure serialization/deserialization
+    
+
+
 # GEDC parser/serializer
 
 Parses a GEDCOM dataset string
@@ -13,9 +47,9 @@ Each structure contains
 
 - `tag`
 - optionally `payload`, which is one of
-  - a string
-  - a (pointer to) another GEDC structure
-  - `null` for an encoded pointer with no destination
+    - a string
+    - a (pointer to) another GEDC structure
+    - `null` for an encoded pointer with no destination
 - optionally `sub`, which is a list of other structures
 
 For internal use, we also track the following:
@@ -44,64 +78,64 @@ GEDC parsing and serializing both accept a configuration object with the followi
 Parsing configurations:
 
 - `len` = `0`{.js}
-  
-  positive: limit lines to this many characters
-  
-  zero: no length limit
-  
-  negative: no length limit and no CONC allowed
+    
+    positive: limit lines to this many characters
+    
+    zero: no length limit
+    
+    negative: no length limit and no CONC allowed
 
-- `tag` = `/.*/`{.js}
+  - `tag` = `/.*/`{.js}
 
-  A regex to limit the set of permitted tags.
-  Tags will always match at least `/^[^@\p{Cc}\p{Z}][^\p{Cc}\p{Z}]*$/u`{.js}:
-  that is, 1 or more characters,
-  no whitespace or control characters,
-  and not beginning with `@`.
+    A regex to limit the set of permitted tags.
+    Tags will always match at least `/^[^@\p{Cc}\p{Z}][^\p{Cc}\p{Z}]*$/u`{.js}:
+    that is, 1 or more characters,
+    no whitespace or control characters,
+    and not beginning with `@`.
 
 - `xref` = `/.*/`{.js}
-  
-  A regex to limit the set of permitted cross-reference identifiers.
-  Cross-reference identifiers will always match at least `/^([^@#\p{Cc}]|\t)([^@\p{Cc}]|\t)*$/u`{.js}:
-  that is, one or more characters,
-  no non-tab control characters,
-  no `@`,
-  and not beginning with `#`.
+    
+    A regex to limit the set of permitted cross-reference identifiers.
+    Cross-reference identifiers will always match at least `/^([^@#\p{Cc}]|\t)([^@\p{Cc}]|\t)*$/u`{.js}:
+    that is, one or more characters,
+    no non-tab control characters,
+    no `@`,
+    and not beginning with `#`.
 
 - `linesep` = `/.*/`{.js}
-  
-  A regex to limit what is considered a line separation.
-  Line separations will always match at least /^[\n\r]\p{WSpace}*$/u:
-  that is, a carriage return or line feed
-  followed by whitespace.
+    
+    A regex to limit what is considered a line separation.
+    Line separations will always match at least /^[\n\r]\p{WSpace}*$/u:
+    that is, a carriage return or line feed
+    followed by whitespace.
 
 - `delim` = `/.*/`{.js}
-  
-  A regex to limit what is considered a delimiter.
-  Delimiters will always match at least /^[ \t\p{Zs}]+$/u:
-  that is, linear whitespace.
-  
-  A single space will always be used during serialization, regardless of the value of `delim`.
+    
+    A regex to limit what is considered a delimiter.
+    Delimiters will always match at least /^[ \t\p{Zs}]+$/u:
+    that is, linear whitespace.
+    
+    A single space will always be used during serialization, regardless of the value of `delim`.
 
 - `payload` = `/.*/`{.js}
-  
-  A regex to limit permitted string payloads.
+    
+    A regex to limit permitted string payloads.
 
 - `zeros` = `false`
-  
-  If `true`, allow leading zeros on levels (e.g. `00` or `01`)
+    
+    If `true`, allow leading zeros on levels (e.g. `00` or `01`)
 
 Serializing configurations:
 
 - `newline` = `'\n'`{.js}
-  
-  A string to insert between lines when serializing.
-  Should match `linesep`.
+    
+    A string to insert between lines when serializing.
+    Should match `linesep`.
 
 - `escapes` = `false`
-  
-  If `true`, serialize payloads beginning `@#` as `@#` instead of `@@#`.
-  Both always deserialize as the same thing.
+    
+    If `true`, serialize payloads beginning `@#` as `@#` instead of `@@#`.
+    Both always deserialize as the same thing.
 
 Two special config objects are provided to match the GEDCOM 5.x and FamilySearch GEDCOM 7.x specs:
 
