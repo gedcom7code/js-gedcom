@@ -7,34 +7,34 @@ It assumes you have correctly parsed bytes into a JavaScript string before proce
 
 # Status
 
-- [*] Tag-oriented layer
-    - [*] Tag-oriented parser
-        - [*] With CONT and CONC handling
-        - [*] With multiple dialects
-    - [*] Manual creation of structures
-    - [*] Tag-oriented JSON serializer/deserializer
+- [x] Tag-oriented layer
+    - [x] Tag-oriented parser
+        - [x] With CONT and CONC handling
+        - [x] With multiple dialects
+    - [x] Manual creation of structures
+    - [x] Tag-oriented JSON serializer/deserializer
 - [ ] Type-aware layer
-    - [*] Parse spec from <https://github.com/FamilySearch/GEDCOM-registries>
-    - [*] Parse tag-oriented into type-aware
-        - [*] Context-aware structure type
-            - [*] Error for out-of-place standard tags
+    - [x] Parse spec from <https://github.com/FamilySearch/GEDCOM-registries>
+    - [x] Parse tag-oriented into type-aware
+        - [x] Context-aware structure type
+            - [x] Error for out-of-place standard tags
             - [ ] Error for cardinality violations
-        - [*] Structure-type-aware payload parsing
-            - [*] Error for malformed payloads
-            - [*] Error for enumeration set membership violations
+        - [x] Structure-type-aware payload parsing
+            - [x] Error for malformed payloads
+            - [x] Error for enumeration set membership violations
             - [ ] Error for pointed-to type violations
-        - [*] Support extensions, schema
-            - [*] Warn about undocumented, unregistered, aliased, and relocated
+        - [x] Support extensions, schema
+            - [x] Warn about undocumented, unregistered, aliased, and relocated
         - [ ] Warn about deprecations
         - [ ] Warn about not-recommended patterns
     - [ ] Manual creation of structures
-        - [*] Creation, pointer handling, etc
+        - [x] Creation, pointer handling, etc
         - [ ] Error checking
     - [ ] Serialize to tag-oriented
         - [ ] Schema deduction
         - [ ] Serialization
     - [ ] Type-oriented JSON serializer/deserializer
-        - [*] Datatype serialization/deserialization
+        - [x] Datatype serialization/deserialization
         - [ ] Structure serialization/deserialization
     
 
