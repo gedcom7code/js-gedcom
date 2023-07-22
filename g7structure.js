@@ -28,12 +28,15 @@ class G7Structure {
   #id
   #lookup
   
-  // 4 ways of making:
-  // dataset.createRecord
-  // structure.createSubstructure
-  // fromGEDC (also makes substructures; pointers need post-processing
-  // fromJSON (also makes substructures; pointers need post-processing
-  
+  /**
+   * Internal-use constructor. To make a G7Structure, use one of the following:
+   * 
+   * - {@link G7Dataset#createRecord} to manually create a record
+   * - {@link G7Structure#createSubstructure} to manually create a substructure
+   * - {@link G7Dataset#fromString} to load a raw GEDCOM file
+   * - {@link G7Dataset#fromGEDC} to load a parsed GEDCOM file
+   * - {@link G7Dataset#fromJSON} to load a parsed JSON dataset
+   */
   constructor(lookup, type, payload, sup, id) {
     this.#lookup = lookup
     this.type = type
@@ -49,6 +52,12 @@ class G7Structure {
     this.#id = id
   }
   
+  /**
+   * Add a substructure to this structure
+   * @param {string} type - URI of the structure type
+   * @param payload - the payload of this structure
+   * @param {Object|boolean} pltype - optional payload type definition. If `true` skips payload type check; if `false` or missing, looks up payload type
+   */
   createSubstructure(type, payload, pltype) {
     if (!type.includes(':'))
       type = this.#lookup.substructure(this.type, type, false).type
@@ -63,6 +72,7 @@ class G7Structure {
     return new G7Structure(this.#lookup, type, payload, this)
   }
   
+  /** A helper function to be called by G7Dataset.fromGEDC */
   gedcSubstructures(sub) {
     for(let s of sub) {
       const s7 = this.createSubstructure(s.tag, s.payload)
@@ -70,6 +80,10 @@ class G7Structure {
     }
   }
   
+  /**
+   * Repair temporary GEDCStruct pointers with the given map
+   * @param {Map<GEDCStruct,G7Structure>} map
+   */
   fixPointers(map) {
     if (map.has(this.payload)) {
       this.payload = map.get(this.payload)
@@ -119,16 +133,22 @@ class G7Structure {
 }
 
 class G7Dataset {
+  /** The single required header of the dataset
+   * @type {G7Structure}
+   */
   header
-  records
+  /** The records in the dataset, stored by type
+   * @type {Map<string,G7Structure[]}
+   */
+  records = new Map()
+  
   #lookup
   
   /**
-   * If skipHeader is not false, creates  minimal dataset: HEAD.GEDC.VERS and TRLR
+   * If skipHeader is not false, creates HEAD.GEDC.VERS 7.0
    */
   constructor(lookup, skipHeader) {
     this.#lookup = lookup
-    this.records = new Map()
     if (!skipHeader) {
       this.header = new G7Structure(lookup, 'https://gedcom.io/terms/v7/HEAD')
       const g = new G7Structure(lookup, 'https://gedcom.io/terms/v7/GEDC', this.header)
@@ -139,6 +159,7 @@ class G7Dataset {
   /**
    * Creates a record (or header).
    * @param {string} type - a URI if has a colon, else a tag
+   * @param payload - payload of the record, either encoded as a string or parsed as an object
    * @param pltype - may be a payload type definition; `true` meaning already checked and use as-is; or false meaning check the lookup and parse accordingly
    */
   createRecord(type, payload, pltype) {
@@ -163,10 +184,18 @@ class G7Dataset {
     return rec
   }
 
+  /** Parse a GEDCOM string into a dataset
+   * @param {string} str - the entire dataset as a GEDCOM string
+   * @patam {G7Lookup} lookup
+   */
   static fromString(str, lookup) {
     const src = GEDCStruct.fromString(src, g7ConfGEDC, lookup.err)
     return G7Dataset.fromGEDC(src, lookup)
   }
+  /** Parse a list of GEDCStruct into a dataset
+   * @param {GEDCStruct[]} src - the entire dataset parsed as tags
+   * @patam {G7Lookup} lookup
+   */
   static fromGEDC(src, lookup) {
     if (!Array.isArray(src) || src.length < 1)
       throw new TypeError('Must be given an non-empty array of GEDCStruct objects')
@@ -192,7 +221,6 @@ class G7Dataset {
         rec.gedcSubstructures(gedc.sub)
       }
     }
-    //throw new Error()
     ans.header.fixPointers(ptrs)
     ans.records.forEach(a => a.forEach(r=>r.fixPointers(ptrs)))
     ans.header.validate()

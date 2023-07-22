@@ -15,7 +15,7 @@ It assumes you have correctly parsed bytes into a JavaScript string before proce
     - [x] Tag-oriented JSON serializer/deserializer
 - [ ] Type-aware layer
     - [x] Parse spec from <https://github.com/FamilySearch/GEDCOM-registries>
-    - [ ] Parse tag-oriented into type-aware
+    - [x] Parse tag-oriented into type-aware
         - [x] Context-aware structure type
             - [x] Error for out-of-place standard tags
             - [x] Error for cardinality violations
@@ -25,13 +25,15 @@ It assumes you have correctly parsed bytes into a JavaScript string before proce
             - [x] Error for pointed-to type violations
         - [x] Support extensions, schema
             - [x] Warn about undocumented, unregistered, aliased, and relocated
-        - [ ] Warn about deprecations
+        - [x] Warn about deprecations
             - [x] EXID.TYPE
             - [ ] g7:enumset-ord-STAT members COMPLETED, EXCLUDED, INFANT, PRE_1970, SUBMITTED, UNCLEARED
         - [ ] Warn about not-recommended patterns
     - [x] Manual creation of structures
         - [x] Creation, pointer handling, etc
-        - [x] Error checking on request via `.validate()` -- not part of constructor because partly-constructed structures don't yet have require substructures
+        - [x] Error checking
+            - [x] on request via `.validate()`
+            - [ ] automatic partial checking on creation: payload types, superstructure not having too many of non-plural substructures
     - [ ] Serialize to tag-oriented
         - [ ] Schema deduction
         - [ ] Serialization
