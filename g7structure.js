@@ -1,15 +1,30 @@
 export { G7Structure, G7Dataset }
-import { G7Datatype } from "./g7datatypes.js"
+import { G7Datatype, checkDatatype } from "./g7datatypes.js"
 import { GEDCStruct, g7ConfGEDC } from "./gedcstruct.js"
 
 
 
 class G7Structure {
+  /**
+   * The type of this structure; either a URI, or the tag of an undocumented
+   * extension structure or extension-defined substructure 
+   * @type {string}
+   */
   type
+  /**
+   * The payload: null or G7Structure for pointers,
+   * undefined for no payload,
+   * string or type from g7datatypes.js for other payloads
+   */
   payload
-  sub
+  /**
+   * Substructures, organized as lists of substructures of a given type.
+   * assert(this.sub.get(t)[i].type === t)
+   * @type {Map<string, G7Structure[]>}
+   */
+  sub = new Map()
   #sup
-  #ref
+  #ref = new WeakSet()
   #id
   #lookup
   
@@ -24,8 +39,6 @@ class G7Structure {
     this.type = type
     this.payload = payload
     this.#sup = sup
-    this.sub = new Map()
-    this.#ref = new WeakMap()
     if (sup instanceof G7Structure) {
       if (sup.sub.has(type)) sup.sub.get(type).push(this)
       else sup.sub.set(type, [this])
@@ -65,6 +78,43 @@ class G7Structure {
       this.#lookup.err?.('v7 forbids pointers to substructures')
       this.payload = null
     }
+    this.sub.forEach(v => v.forEach(e => e.fixPointers(map)))
+  }
+  
+  /**
+   * Verify that
+   * - required substructures are present
+   * - singular substructures are not present more than once
+   * - this structure has either payload or substructures or both
+   * - payload matches spec
+   * - hard-code check for deprecated EXID without TYPE
+   */
+  validate() {
+    // remove emoty sub lists, if any
+    this.sub.forEach((v,k,m) => { if (!v || v.length == 0) m.delete(k) })
+    // check substructure cardinality
+    if (this.type in this.#lookup.g7.substructure) {
+      Object.values(this.#lookup.g7.substructure)
+            .forEach(v => {
+              if (v.cardinality?.[1] === '1' && !this.sub.has(v.type))
+                this.#lookup.err?.(`Missing substructure: #{this.type} requires a ${v.type}`)
+              if (v.cardinality?.[3] === '1' && this.sub.has(v.type) && this.sub.get(v.type).length > 1)
+                this.#lookup.err?.(`Duplicate substructures: #{this.type} may have at most one ${v.type}`)
+              
+            })
+    }
+    // check for empty structures
+    if (this.sub.size === 0 && (this.payload === undefined || this.payload?.length === 0 || this.payload?.isEmpty?.()))
+      this.#lookup.err?.(`Empty structure: ${this.type} with no substructure and no payload`)
+    // check payload
+    const plt = this.#lookup.payload(this.type)
+    if (!checkDatatype(this.payload, plt))
+      this.#lookup.err?.(`Invalid payload: ${this.type} requires a ${plt.set || plt.to || plt.type}, not ${this.payload?.type || this.payload || "an empty payload"}`)
+    // deprecation check for EXID.TYPE
+    if (this.type == 'https://gedcom.io/terms/v7/EXID' && !this.sub.has('https://gedcom.io/terms/v7/EXID-TYPE'))
+      this.#lookup.warn?.(`Deprecated: Having an EXID without an EXID.TYPE substructure is deprecated`)
+    // recursively
+    this.sub.forEach(v => v.forEach(e => e.validate()))
   }
 }
 
@@ -142,8 +192,11 @@ class G7Dataset {
         rec.gedcSubstructures(gedc.sub)
       }
     }
+    //throw new Error()
     ans.header.fixPointers(ptrs)
     ans.records.forEach(a => a.forEach(r=>r.fixPointers(ptrs)))
+    ans.header.validate()
+    ans.records.forEach(a => a.forEach(r=>r.validate()))
     return ans
   }
 }

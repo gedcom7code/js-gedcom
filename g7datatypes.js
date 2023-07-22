@@ -4,7 +4,7 @@
  * Many methods in the classes in this file depend on 
  * a G7Lookups object named `lookup` (see `g7lookups.js`)
  */
-export { G7Age, G7Date, G7DateValue, G7Time, G7Enum, G7Datatype }
+export { G7Age, G7Date, G7DateValue, G7Time, G7Enum, G7Datatype, checkDatatype }
 
 class G7Datatype {
   
@@ -42,7 +42,7 @@ class G7Datatype {
         return undefined
       case 'pointer':
         if (str !== null) lookup.err?.(`pointer payload expected, not ${JSON.stringify(str)}`)
-        return undefined
+        return null
       case 'http://www.w3.org/2001/XMLSchema#nonNegativeInteger':
         if (/^[0-9]+$/.test(str)) return Number(str)
         lookup.err?.(`integer payload expected, not ${JSON.stringify(str)}`)
@@ -118,7 +118,8 @@ function checkDatatype(payload, plt) {
   switch(plt.type) {
     case '?': return true
     case null: return payload === undefined
-    case 'pointer': return payload === null || (payload instanceof G7Structure && payload.type == plt.to)
+    case 'pointer': 
+      return payload === null || (payload?.type === plt.to)
     case 'http://www.w3.org/2001/XMLSchema#nonNegativeInteger': return 'number' === typeof payload && (0|payload) == payload && payload >= 0
     case 'https://gedcom.io/terms/v7/type-List#Text': return Array.isArray(payload) && payload.map(e => 'string' == typeof e).reduce((x,y)=>x&&y, true)
     case 'https://gedcom.io/terms/v7/type-List#Enum': return Array.isArray(payload) && payload.map(e => e instanceof G7Enum).reduce((x,y)=>x&&y, true)
@@ -183,6 +184,8 @@ class G7Age {
     if (this.days) ans += this.days+'d'
     return ans.trim()
   }
+  
+  isEmpty() { return years === undefined && months === undefined && weeks === undefined && days === undefined }
 }
 
 /**
@@ -322,6 +325,8 @@ class G7DateValue {
       throw new Error(`Cannot serialize unknown date type ${this.type}`)
     }
   }
+
+  isEmpty() { return this.type === 'empty' }
 }
 
 /**
