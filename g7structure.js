@@ -236,8 +236,8 @@ class G7Dataset {
     }
     ans.header.fixPointers(ptrs)
     ans.records.forEach(a => a.forEach(r=>r.fixPointers(ptrs)))
-    console.log("Errors found in header:", ans.header.validate())
-    ans.records.forEach(a => a.forEach(r=>(console.log("Errors found in record:",r.validate()))))
+    ans.header.validate()
+    ans.records.forEach(a => a.forEach(r=>r.validate()))
     return ans
   }
 }
