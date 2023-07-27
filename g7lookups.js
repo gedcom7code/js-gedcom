@@ -31,39 +31,43 @@ class G7Lookups {
    */
   warn
   
+  // helpers to avoid duplicate messages
+  #olderr = new Set()
+  #oldwarn = new Set()
+  #err(msg) {
+    if (this.#olderr.has(msg)) return
+    this.#olderr.add(msg)
+    this.err?.(msg)
+  }
+  #warn(msg) {
+    if (this.#oldwarn.has(msg)) return
+    this.#oldwarn.add(msg)
+    this.warn?.(msg)
+  }
+  
+  
   /** storage of documented extensions */
   #ext
   #extTag = {}
   
   /** Logs documented extensions that are not registered in in g7 */
-  #unreg = new Set()
   unreg(msg) {
-    if (this.#unreg.has(msg)) return
-    if (this.#unreg.size == 0) this.warn?.('\u261B Register extensions at https://github.com/FamilySearch/GEDCOM-registries \u261A')
-    this.warn?.(('Unregistered extension '+msg).replace('extension defined','extension-defined'))
-    this.#unreg.add(msg)
+    this.#warn('\u261B Register extensions at https://github.com/FamilySearch/GEDCOM-registries \u261A')
+    this.#warn(('Unregistered extension '+msg).replace('extension defined','extension-defined'))
   }
   /** Logs undocumented extensions */
-  #undoc = new Set()
   undoc(msg) {
-    if (this.#undoc.has(msg)) return
-    if (this.#undoc.size == 0) this.warn?.('\u261B Document extensions using HEAD.SCHMA.TAG \u261A')
-    this.warn?.('Undocumented extension '+msg)
-    this.#undoc.add(msg)
+    this.#warn('\u261B Document extensions using HEAD.SCHMA.TAG \u261A')
+    this.#warn('Undocumented extension '+msg)
   }
   /** Reports ambiguous extensions: i.e., one tag with two URIs and insufficient information to pick which one to use */
-  #ambig = new Set()
-  ambig(msg) {
-    if (this.#ambig.has(msg)) return
-    this.err?.('Ambiguous '+msg)
-    this.#ambig.add(msg)
+  ambig(msg, asWarning) {
+    if (asWarning) this.#warn('Ambiguous '+msg)
+    else this.#err('Ambiguous '+msg)
   }
   /** Reports aliasing tags: an extension tag used where a standard tag exists */
-  #alaised = new Set()
   aliased(msg) {
-    if (this.#alaised.has(msg)) return
-    this.warn?.('Aliased '+msg)
-    this.#alaised.add(msg)
+    this.#warn('Aliased '+msg)
   }
     
   
@@ -149,11 +153,11 @@ class G7Lookups {
   /** Registers a new extension tag. */
   addExtension(tag, uri) {
     if (!/_[A-Z0-9_]+/.test(tag)) {
-      this.err?.(`Malformed extension tag "${tag}"`)
+      this.#err(`Malformed extension tag "${tag}"`)
       return
     }
     if (!uri.includes(':')) {
-      this.err?.(`Malformed URI "${uri}"`)
+      this.#err(`Malformed URI "${uri}"`)
       return
     }
     if (!this.#ext.has(tag)) this.#ext.set(tag,[])
@@ -167,9 +171,9 @@ class G7Lookups {
    * the first URI for the tag in the SCHMA
    * of the tag itself if it is not in the SCHMA
    */
-  misc(tag, prefix, aliasSet) {
+  misc(tag, prefix, ambigWarn) {
     if (tag[0] !== '_' && !tag.includes(':'))
-      this.err?.(`${tag} cannot be used as ${prefix}`)
+      this.#err(`${tag} cannot be used as ${prefix}`)
     if (!this.#ext.has(tag)) {
       this.undoc(`${prefix} ${tag}`)
       return tag
@@ -177,7 +181,7 @@ class G7Lookups {
       this.unreg(`${prefix} ${this.#ext.get(tag)[0]}`)
       return this.#ext.get(tag)[0]
     } else {
-      this.ambig(`${prefix} ${tag}\n  could be ${this.#ext.get(tag).join('\n        or ')}`)
+      this.ambig(`${prefix} ${tag}\n  could be ${this.#ext.get(tag).join('\n        or ')}`, ambigWarn)
       return tag
     }
   }
@@ -188,7 +192,7 @@ class G7Lookups {
   calendar(tag) {
     if (tag in this.g7.calendar) return this.g7.calendar[tag]
     if (tag[0] != '_') {
-      this.err?.(`Standard tag ${tag} cannot identify a calendar`)
+      this.#err(`Standard tag ${tag} cannot identify a calendar`)
     } else if (this.#ext.has(tag)) {
       const alias = Symbol.for('alias')
       let found = false
@@ -214,7 +218,7 @@ class G7Lookups {
     if (!('months' in cal)) return this.misc(tag, `calendar ${cal.type}'s month`)
     if (tag in cal.months) return cal.months[tag]
     if (tag[0] != '_') {
-      this.err?.(`calendar ${cal.type} does not have a month "${tag}"`)
+      this.#err(`calendar ${cal.type} does not have a month "${tag}"`)
     } else if (this.#ext.has(tag)) {
       const alias = Symbol.for('alias')
       let found = false
@@ -229,7 +233,7 @@ class G7Lookups {
         this.aliased(`calendar ${cal.type} month ${found} with extTag ${tag}; use stdTag ${this.g7.tag[found]} instead`)
         return cal.months[alias].get(found)
       }
-      this.err?.(`calendar ${cal.type}'s months do not include "${this.#ext.get(tag).join(' or ')}"`)
+      this.#err(`calendar ${cal.type}'s months do not include "${this.#ext.get(tag).join(' or ')}"`)
     }
     return this.misc(tag, `calendar ${cal.type}'s month`)
   }
@@ -250,7 +254,7 @@ class G7Lookups {
       let set = this.g7.set[seturi]
       if (tag in set) return set[tag]
       if (tag[0] != '_')
-        this.err?.(`"${tag}" not permitted in enumeration set ${seturi}`)
+        this.#err(`"${tag}" not permitted in enumeration set ${seturi}`)
           
       const alias = Symbol.for('alias')
       let found = false
@@ -267,7 +271,7 @@ class G7Lookups {
       }
     }
     if (tag[0] != '_')
-      this.err?.(`"${tag}" not permitted in enumeration set ${seturi}`)
+      this.#err(`"${tag}" not permitted in enumeration set ${seturi}`)
 
     return this.misc(tag, `enumeration set ${seturi} value`)
   }
@@ -282,13 +286,13 @@ class G7Lookups {
       const reloc = this.g7[Symbol.for('reloc')]
       if (tag[0] != '_') {
         if (!reloc.has(tag))
-          this.warn?.(`Extension-defined ${pfx.replace(/:$/,'')} with novel tag ${tag}`)
+          this.#warn(`Extension-defined ${pfx.replace(/:$/,'')} with novel tag ${tag}`)
         else if (reloc.get(tag).length == 1)
           this.unreg(`defined ${pfx} ${tag} recommended to mean ${reloc.get(tag)[0]}`)
         else if (uri && reloc.get(tag).filter(u=>!this.g7.substructure[''][alias].has(u)).length == 1)
           this.unreg(`defined ${pfx} ${tag} recommended to mean ${reloc.get(tag).filter(u=>!this.g7.substructure[''][alias].has(uri))[0]}`)
         else
-          this.unreg(`defined ${pfx} ${tag} has ambiguous meaning`)
+          this.ambig(`extension-defined substructure ${tag}\n  could be ${reloc.get(tag).join('\n        or ')}`, true)
         return {
           cardinality: '{0:M}',
           type: tag,
@@ -303,7 +307,7 @@ class G7Lookups {
     if (tag in this.g7.substructure[uri])
       return this.g7.substructure[uri][tag]
     if (tag[0] != '_' && uri in this.g7.tag && this.g7.tag[uri][0] != '_')
-      this.err?.(`Prohibited ${pfx} ${tag}`)
+      this.#err(`Prohibited ${pfx} ${tag}`)
     let found = false
     if (this.#ext.has(tag)) {
       for(let uri2 of this.#ext.get(tag)) {
@@ -322,7 +326,7 @@ class G7Lookups {
     
     return {
       cardinality: '{0:M}',
-      type: this.misc(tag,pfx),
+      type: this.misc(tag,pfx,true),
     }
   }
   /** Looks up the recommended tag to the URI.
