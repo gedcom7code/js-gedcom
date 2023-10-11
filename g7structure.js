@@ -50,6 +50,7 @@ class G7Structure {
     }
     if (payload instanceof G7Structure) {
       payload.#ref.add(this)
+      if(!payload.#id) payload.#id = String(Math.random()).replace(/0\./,'') // FIX ME
     }
     this.#id = id
   }
@@ -83,16 +84,30 @@ class G7Structure {
   }
   
   /**
-   * Repair temporary GEDCStruct pointers with the given map
-   * @param {Map<GEDCStruct,G7Structure>} map
+   * Repair temporary GEDCStruct pointers with the given map,
+   * or temporary xref strings with given map.
+   * @param {Map<GEDCStruct,G7Structure>} map, or Map<string,G7Structure> for xref
    */
   fixPointers(map) {
-    if (map.has(this.payload)) {
-      this.payload = map.get(this.payload)
-      this.payload.#ref.add(this)
-    } else if (this.payload instanceof GEDCStruct) {
-      this.#lookup.err?.('v7 forbids pointers to substructures')
-      this.payload = null
+    if (this.xref) {
+      if (map.has(this.xref.substr(1))) {
+        this.paylaod = map.get(this.xref.substr(1))
+        this.payload?.#ref.add(this)
+        if(this.payload && !this.payload.#id) this.payload.#id = this.xref.substr(1)
+      } else {
+        this.#lookup.err?.(`unmatched xref ${this.xref} in JSON input`)
+        this.payload = null
+      }
+      delete this.xref
+    } else {
+      if (map.has(this.payload)) {
+        this.payload = map.get(this.payload)
+        this.payload.#ref.add(this)
+        if(!this.payload.#id) this.payload.#id = String(Math.random()).replace(/0\./,'') // FIX ME
+      } else if (this.payload instanceof GEDCStruct) {
+        this.#lookup.err?.('v7 forbids pointers to substructures')
+        this.payload = null
+      }
     }
     this.sub.forEach(v => v.forEach(e => e.fixPointers(map)))
   }
@@ -140,6 +155,81 @@ class G7Structure {
     this.sub.forEach(v => v.forEach(e => errors += e.validate()))
     return errors
   }
+  
+  toJSON() {
+    const ans = {}
+    if (this.#id) ans.id = this.#id
+    if (this.payload instanceof G7Structure) {
+      if (this.payload.#id) ans.xref = '#'+this.payload.#id
+      else throw Error("FIX ME: add identifiers to all pointed-to structures")
+    } else if (this.payload !== undefined) ans.payload = this.payload
+    
+    if (this.sub && this.sub.size > 0) {
+      ans.sub = {}
+      this.sub.forEach((v,k) => ans.sub[k] = v.map(e=>e.toJSON()))
+    }
+    return ans
+  }
+  
+  /** To be called only by G7Dataset.fromJSON() */
+  static fromJSON(lookup, sup, type, obj, ids) {
+    const ans = new G7Structure(lookup, type, obj.payload, sup, obj.id)
+    if (obj.id) {
+      if (sup instanceof G7Structure) lookup.err?.(`v7 forbids pointers to substructures`)
+      else if (ids.has(obj.id)) lookup.err?.(`duplicate id ${obj.id} in JSON`)
+      else ids.set(obj.id, ans)
+    }
+    if (obj.xref) ans.xref = obj.xref
+    if (obj.sub) Object.entries(obj.sub).forEach?.(([k,v]) => ans.sub.set(k, v.map(e=>G7Structure.fromJSON(lookup, ans, k, e, ids))))
+    return ans
+  }
+
+}
+
+/**
+ * Helper for populating a SCHMA, using the following rules:
+ * 
+ * 1. Leave tag-as-type as is
+ * 2. Don't define any tag-as-type URIs
+ * 3. No ambiguity
+ * 4. Use _TAG with stdTag TAG only for relocated
+ * 5. Prefer tags from imported file
+ * 6. Look for tags in URI
+ * 7. Use type-based tags: _EX[RSVCM]:
+ *    R for records, S for substructures, V for enumeration values,
+ *    C for calendars, M for months
+ * 
+ * If earlier rules prohibit a tag later rules suggest, append an integer
+ */
+class G7Schema {
+  undoc = new Set()
+  tags = new Map()
+  #lookup
+  
+  constructor(lookup) { this.#lookup = lookup }
+  
+  
+
+  /**
+   * Tries to guess a good tag for a given URI.
+   * Looks for a tag at the end of the URI,
+   * or the only tag in the URI,
+   * or an ending that can be converted to a tag.
+   * 
+   * @param {string} uri
+   * @returns {string} a recommended extension tag, or undefined if none found
+   */
+  static uriToTag(uri) {
+    var tail = /([^\/#?=&]+)\/?$/.exec(uri)[1]
+    if (!tail) tail = uri
+    if (/[A-Z][A-Z_0-9]+$/.test(tail)) return '_'+/[A-Z][A-Z_0-9]+$/.exec(tail)[0]
+    const bits = tail.split(/([_A-Z][A-Z0-9_]+)/g)
+    if (bits.length === 3) return (bits[1][0] === '_'?'_':'') + bits[1]
+    if (/^[a-zA-Z0-9][-a-zA-Z0-9_]{1,14}$/.test(tail)) return '_'+tail.toUpperCase.replace(/[^A-Z0-9]/g, '_')
+    return undefined
+  }
+
+
 }
 
 /**
@@ -174,8 +264,9 @@ class G7Dataset {
    * @param {string} type - a URI if has a colon, else a tag
    * @param payload - payload of the record, either encoded as a string or parsed as an object
    * @param pltype - may be a payload type definition; `true` meaning already checked and use as-is; or false meaning check the lookup and parse accordingly
+   * @param {string} id - a suggested xref_id to use when pointing to this record
    */
-  createRecord(type, payload, pltype) {
+  createRecord(type, payload, pltype, id) {
     if (!type.includes(':'))
       type = this.#lookup.substructure('', type, false).type
     if (!pltype)
@@ -187,7 +278,7 @@ class G7Dataset {
       this.#lookup.err = oldErr
     }
     
-    const rec = new G7Structure(this.#lookup, type, payload, this)
+    const rec = new G7Structure(this.#lookup, type, payload, this, id)
     
     if (type === 'https://gedcom.io/terms/v7/HEAD') {
       if (this.header) this.#lookup.err?.(`Only one header is allowed per dataset; additional headers ignored`)
@@ -229,7 +320,7 @@ class G7Dataset {
       if (gedc.tag == 'TRLR') {
         lookup.err?.('TRLR can only appear at the end of a dataset')
       } else {
-        const rec = ans.createRecord(gedc.tag, gedc.payload, false)
+        const rec = ans.createRecord(gedc.tag, gedc.payload, false, gedc.xref_id)
         ptrs.set(gedc, rec)
         rec.gedcSubstructures(gedc.sub)
       }
@@ -238,6 +329,22 @@ class G7Dataset {
     ans.records.forEach(a => a.forEach(r=>r.fixPointers(ptrs)))
     ans.header.validate()
     ans.records.forEach(a => a.forEach(r=>r.validate()))
+    return ans
+  }
+
+  toJSON() {
+    const ans = {header:this.header.toJSON(), records:{}}
+    this.records.forEach((v,k) => ans.records[k] = v.map(e=>e.toJSON()))
+    return ans
+  }
+
+  static fromJSON(obj, lookup) {
+    const ptrs = new Map()
+    const ans = new G7Dataset(lookup, true)
+    ans.header = G7Structure.fromJSON(lookup, this, `https://gedcom.io/terms/v7/HEAD`, obj.header, ptrs)
+    Object.entries(obj.records).forEach(([k,v]) => ans.records.set(k, v.map(e => G7Structure.fromJSON(lookup, this, k, e, ptrs))))
+    ans.header.fixPointers(ptrs)
+    ans.records.forEach((v,k) => v.forEach(e => e.fixPointers(ptrs)))
     return ans
   }
 }

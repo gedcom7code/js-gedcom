@@ -37,9 +37,9 @@ It assumes you have correctly parsed bytes into a JavaScript string before proce
     - [ ] Serialize to tag-oriented
         - [ ] Schema deduction
         - [ ] Serialization
-    - [ ] Type-oriented JSON serializer/deserializer
+    - [x] Type-oriented JSON serializer/deserializer
         - [x] Datatype serialization/deserialization
-        - [ ] Structure serialization/deserialization
+        - [x] Structure serialization/deserialization
     
 
 
