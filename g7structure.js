@@ -1,5 +1,5 @@
 export { G7Structure, G7Dataset }
-import { G7Datatype, checkDatatype } from "./g7datatypes.js"
+import { G7Date, G7DateValue, G7Enum, G7Datatype, checkDatatype } from "./g7datatypes.js"
 import { GEDCStruct, g7ConfGEDC } from "./gedcstruct.js"
 
 
@@ -135,9 +135,9 @@ class G7Structure {
       Object.values(this.#lookup.g7.substructure[this.type])
             .forEach(v => {
               if (v.cardinality?.[1] === '1' && !this.sub.has(v.type))
-                err(`Missing substructure: #{this.type} requires a ${v.type}`)
+                err(`Missing substructure: ${this.type} requires a ${v.type}`)
               if (v.cardinality?.[3] === '1' && this.sub.has(v.type) && this.sub.get(v.type).length > 1)
-                err(`Duplicate substructures: #{this.type} may have at most one ${v.type}`)
+                err(`Duplicate substructures: ${this.type} may have at most one ${v.type}`)
               
             })
     }
@@ -154,6 +154,41 @@ class G7Structure {
     // recursively
     this.sub.forEach(v => v.forEach(e => errors += e.validate()))
     return errors
+  }
+  
+  /**
+   * uses #lookup.schemaPrep to populate a schma map
+   * @param {Map<string,string>} schma - a map of URI to tag for all used documented extensions
+   */
+  populateSchema(schma) {
+    
+    // struct
+    this.#lookup.schemaPrep(this.type, 'struct', this.#sup.type || '', schma)
+    
+    // enum
+    if (this.payload instanceof G7Enum)
+      this.#lookup.schemaPrep(this.payload.value, 'enum', this.type, schma)
+    else if (Array.isArray(this.payload) && this.payload.length > 0 && this.payload[0] instanceof G7Enum)
+      this.payload.forEach(e => this.#lookup.schemaPrep(e.value, 'enum', this.type, schma))
+    
+    // cal and month
+    else if (this.payload instanceof G7Date) {
+      this.#lookup.schemaPrep(this.payload.calendar, 'cal', this.type, schma)
+      this.#lookup.schemaPrep(this.payload.month, 'month', this.payload.calendar, schma)
+    }
+    else if (this.payload instanceof G7DateValue) {
+      this.#lookup.schemaPrep(this.payload.date?.calendar, 'cal', this.type, schma)
+      this.#lookup.schemaPrep(this.payload.date?.month, 'month', this.payload.date?.calendar, schma)
+      this.#lookup.schemaPrep(this.payload.date2?.calendar, 'cal', this.type, schma)
+      this.#lookup.schemaPrep(this.payload.date2?.month, 'month', this.payload.date2?.calendar, schma)
+    }
+    
+    // recur
+    this.sub.forEach(v => v.forEach(e => e.populateSchema(schma)))
+  }
+  
+  toGEDC(schma, ptrTargets) {
+    // FIX ME: implement this
   }
   
   toJSON() {
@@ -184,53 +219,9 @@ class G7Structure {
     return ans
   }
 
-}
-
-/**
- * Helper for populating a SCHMA, using the following rules:
- * 
- * 1. Leave tag-as-type as is
- * 2. Don't define any tag-as-type URIs
- * 3. No ambiguity
- * 4. Use _TAG with stdTag TAG only for relocated
- * 5. Prefer tags from imported file
- * 6. Look for tags in URI
- * 7. Use type-based tags: _EX[RSVCM]:
- *    R for records, S for substructures, V for enumeration values,
- *    C for calendars, M for months
- * 
- * If earlier rules prohibit a tag later rules suggest, append an integer
- */
-class G7Schema {
-  undoc = new Set()
-  tags = new Map()
-  #lookup
-  
-  constructor(lookup) { this.#lookup = lookup }
-  
-  
-
-  /**
-   * Tries to guess a good tag for a given URI.
-   * Looks for a tag at the end of the URI,
-   * or the only tag in the URI,
-   * or an ending that can be converted to a tag.
-   * 
-   * @param {string} uri
-   * @returns {string} a recommended extension tag, or undefined if none found
-   */
-  static uriToTag(uri) {
-    var tail = /([^\/#?=&]+)\/?$/.exec(uri)[1]
-    if (!tail) tail = uri
-    if (/[A-Z][A-Z_0-9]+$/.test(tail)) return '_'+/[A-Z][A-Z_0-9]+$/.exec(tail)[0]
-    const bits = tail.split(/([_A-Z][A-Z0-9_]+)/g)
-    if (bits.length === 3) return (bits[1][0] === '_'?'_':'') + bits[1]
-    if (/^[a-zA-Z0-9][-a-zA-Z0-9_]{1,14}$/.test(tail)) return '_'+tail.toUpperCase.replace(/[^A-Z0-9]/g, '_')
-    return undefined
-  }
-
 
 }
+
 
 /**
  * A dataset: a header and zero or more records
@@ -286,6 +277,48 @@ class G7Dataset {
     } else if (this.records.has(type)) this.records.get(type).push(rec)
     else this.records.set(type, [rec])
     return rec
+  }
+  
+  /**
+   * Ensures the schema has all needed entries for used URIs
+   */
+  populateSchema() {
+    const schma = new Map()
+    this.header.populateSchema(schma)
+    this.records.forEach(v => v.forEach(e => e.populateSchema(schma)))
+    if(schma.size == 0) this.header.sub.delete('https://gedcom.io/terms/v7/SCHMA')
+    else {
+      let ss
+      if (!this.header.sub.has('https://gedcom.io/terms/v7/SCHMA'))
+        ss = this.header.createSubstructure('https://gedcom.io/terms/v7/SCHMA')
+      else {
+        ss = this.header.sub.get('https://gedcom.io/terms/v7/SCHMA')[0]
+      }
+      for(let [uri,tag] of schma.entries()) {
+        if ('string' == typeof uri) {
+          const payload = tag+' '+uri
+          let found = false
+          for(let tdef of ss.sub.get('https://gedcom.io/terms/v7/TAG'))
+            if (tdef.payload == payload) { found = true; break; }
+          if (!found)
+            ss.createSubstructure('https://gedcom.io/terms/v7/TAG', payload)
+        }
+      }
+    }
+    return schma
+  }
+  
+  /**
+   * Serializes the dataset into a list of GEDCStructs
+   */
+  toGEDC() {
+    const ptrTargets = new WeakMap()
+    const schma = this.populateSchema()
+    const ans = [this.header.toGEDC(schma, ptrTargets)]
+    this.records.forEach(v => v.forEach(e => ans.push(e.toGEDC(schma, ptrTargets))))
+    ans.push(new GEDCStruct('TRLR'))
+    // FIX ME: resolve pointers
+    return ans
   }
 
   /** Parse a GEDCOM string into a dataset

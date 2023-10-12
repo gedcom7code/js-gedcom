@@ -47,8 +47,8 @@ class G7Lookups {
   
   
   /** storage of documented extensions */
-  #ext
-  #extTag = {}
+  #ext // Map with tag: [uri, uri]
+  #extTag = {} // obj with uri: tag
   
   /** Logs documented extensions that are not registered in in g7 */
   unreg(msg) {
@@ -136,7 +136,7 @@ class G7Lookups {
         if (!g7[reloc].has(t)) g7[reloc].set(t,[])
         g7[reloc].get(t).push(u)
       }
-}
+  }
   
   /**
    * Fetches the JSON definition from the given URL,
@@ -163,8 +163,8 @@ class G7Lookups {
     if (!this.#ext.has(tag)) this.#ext.set(tag,[])
     if (this.#ext.get(tag).includes(uri)) return
     this.#ext.get(tag).push(uri)
-    if (!(uri in this.g7.tag) && !(uri in this.#extTag)) this.#extTag[uri] = tag
-    // else this.warn?.(`New tag ${tag} superceded by existing ${this.g7.tag[uri] || this.#extTag[uri]} for ${uri}`) // expected for relocated standard structures
+    if (!(uri in this.#extTag)) this.#extTag[uri] = tag
+    else this.warn?.(`New tag ${tag} superceded by existing ${this.#extTag[uri]} for ${uri}`)
   }
 
   /** Generic extension tag lookup:
@@ -340,4 +340,135 @@ class G7Lookups {
    * Defaults to `[]`
    */
   reqSubstr(uri) { return this.g7.reqSubstr[uri] || [] }
+
+
+  /**
+   * A function to assist in creating a GEDCOM 7 SCHMA.
+   * If given an extension tag, that shall be undocumented
+   * and any previous UIR-tag mappings using it will get a new tag.
+   * If given a URI in context, that shall be given a tag.
+   * 
+   * @param {string} tagOrURI - the tag or URI stored in the parsed data
+   * @param {string} kind - one of {struct, enum, cal, month}
+   * @param {string} within - the most directly containing structure
+   * @param {Map<string, string>} schma - a uri-to-tag mapping that this function modifies
+   */
+  schemaPrep(type, kind, within, schma) {
+    if (!type) return // empty string uri/tag (happens with dates sometimes)
+    if (schma.has(type)) return // already handled
+
+    const _used = Symbol.for('used')
+    if (!schma.has(_used)) schma.set(_used, new Set())
+    const used = schma.get(_used)
+
+    if (!type.includes(':')) {
+      // undocumented tag
+      if (type[0] != '_') return // error? incomplete parsing of standard tag
+      if (this.#ext.has(type)) { // conflict with undoc tag; rename documented
+        let i = 1
+        while (this.#ext.has(type+i) || used.has(type+i)) i += 1
+        this.#ext.get(type).forEach(u => this.#extTag[u] = type+i)
+        this.#ext.get(type).forEach(u => {
+          if (schma.has(u) && schma.get(u) == type) {
+            schma.set(u, type+i)
+            used.add(type+i)
+          }
+        })
+        this.#ext.set(type+i, this.#ext.get(type))
+      }
+      this.#ext.set(type, []) // place holder to avoid future naming conflicts
+      used.add(type)
+      return
+    }
+
+    // uri
+
+    let tag1 = this.tag(type) // initial guess
+
+    let tag2 // registered tag
+    if (kind == 'struct') tag2 = this.g7.tagInContext.struct[within]?.[type] || '_'
+    else if (kind == 'enum') tag2 = this.g7.tagInContext.enum[within]?.[type] || '_'
+    else if (kind == 'cal') tag2 = this.g7.tagInContext.cal[type] || '_'
+    else if (kind == 'month') tag2 = this.g7.tagInContext.month[within]?.[type] || '_'
+    else throw Error('unexpected kind: '+kind)
+
+    // case 1: standard in this context
+    if (tag2 && tag2[0] != '_') return
+    
+    // case 2: already in schema
+    if (type in this.#extTag) {
+      let tag = this.#extTag[type]
+      schma.set(type, tag)
+      return
+    }
+    
+    // case 3: registered in this context
+    if (tag2 && /^_./.test(tag2) || tag1 && /^_./.test(tag1)) {
+      let tag = (tag1 && /^_./.test(tag1)) ? tag1 : tag2
+      if ((this.#ext.has(tag) && this.#ext.get(tag) != type) || used.has(tag)) {
+        let i = 1
+        while (this.#ext.has(tag+i) || used.has(tag+i)) i += 1
+        tag += i
+      }
+      schma.set(type, tag)
+      this.addExtension(tag, type)
+      return
+    }
+
+    // case 4: standard but relocated
+    if (tag1 && tag1[0] != '_') {
+      let tag = '_'+tag1
+      if ((this.#ext.has(tag) && this.#ext.get(tag) != type) || used.has(tag)) {
+        let i = 1
+        while (this.#ext.has(tag+i) || used.has(tag+i)) i += 1
+        tag += i
+      }
+      schma.set(type, tag)
+      this.addExtension(tag, type)
+      return
+    }
+    
+    // case 4: registered but relocated
+    if (tag1) {
+      let tag = tag1
+      if (tag == '_' || (this.#ext.has(tag) && this.#ext.get(tag) != type) || used.has(tag)) {
+        let i = 1
+        while (this.#ext.has(tag+i) || used.has(tag+i)) i += 1
+        tag += i
+      }
+      schma.set(type, tag)
+      this.addExtension(tag, type)
+      return
+    }
+    
+    // case 5: unregistered, unknown URI
+    let tag = uriToTag(type) || '_EXT'
+    if (tag == '_' || this.#ext.has(tag) || used.has(tag)) {
+      let i = 1
+      while (this.#ext.has(tag+i) || used.has(tag+i)) i += 1
+      tag += i
+    }
+    schma.set(type, tag)
+    this.addExtension(tag, type)
+    
+  }
+
+  /**
+   * Tries to guess a good tag for a given URI.
+   * Looks for a tag at the end of the URI,
+   * or the only tag in the URI,
+   * or an ending that can be converted to a tag.
+   * 
+   * @param {string} uri
+   * @returns {string} a recommended extension tag, or undefined if none found
+   */
+  static uriToTag(uri) {
+    var tail = /([^\/#?=&]+)\/?$/.exec(uri)[1]
+    if (!tail) tail = uri
+    if (/[A-Z][A-Z_0-9]+$/.test(tail)) return '_'+/[A-Z][A-Z_0-9]+$/.exec(tail)[0]
+    const bits = tail.split(/([_A-Z][A-Z0-9_]+)/g)
+    if (bits.length === 3) return (bits[1][0] === '_'?'_':'') + bits[1]
+    if (/^[a-zA-Z0-9][-a-zA-Z0-9_]{1,14}$/.test(tail)) return '_'+tail.toUpperCase.replace(/[^A-Z0-9]/g, '_')
+    return undefined
+  }
 }
