@@ -308,7 +308,7 @@ class G7DateValue {
     else if (this.type == 'ABT' || this.type == 'CAL' || this.type == 'EST') {
       return this.type+' '+this.date.toString(false)
     } else if (this.type == 'dateRange') {
-      if (date && date2)
+      if (this.date && this.date2)
         return 'BET '+this.date.toString(this.date.calendar != this.date2.calendar)+' AND '+this.date2.toString(this.date.calendar != this.date2.calendar)
       else if (date)
         return 'AFT '+this.date.toString(false)

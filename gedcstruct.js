@@ -63,7 +63,7 @@ class GEDCStruct {
   }
   
   /**
-   * Replaces string pointers with GEDStruct pointers and assigns every
+   * Replaces string pointers with GEDCStruct pointers and assigns every
    * pointed-to structure an id. If a string pointer is not in ids,
    * replaces with null and logs the incident.
    * 
@@ -95,6 +95,40 @@ class GEDCStruct {
     }
     
     this.sub.forEach(e => e.fixPtrs(ids, logger))
+  }
+  
+  /**
+   * Variant fixPtr for a WeakMap of object-to-GEDCStruct instead of an object
+   * of string-to-GEDCStruct
+   * 
+   * @param {WeakMap<Object,GEDCStruct>} ids - object-to-structure map
+   * @param {function} logger - called with any error messages
+   */
+  fixPtrMap(map, logger) {
+    if ('ptr' in this && map.has(this.ptr)) {
+      this.payload = map.get(this.ptr)
+      delete this.ptr
+      if (this.payload) this.payload.#ref.push(this)
+    } else if ('ptr' in this) {
+      logger?.(`pointer to undefined object`)
+      delete this.ptr
+      this.payload = null
+    }
+    if (this.#ref.length > 0) { // need an ID
+      const used = Symbol.for('used')
+      const next = Symbol.for('next')
+      if (!(used in ids)) { map.set(used, new Set()); map.get(used).add('VOID') }
+      if (!(next in ids)) map.set(next, 0)
+      if (!this.#id || map.get(used).has(this.#id)) {
+        map.set(next, map.get(next) + 1)
+        while ('X'+map.get(next) in ids) map.set(next, map.get(next) + 1)
+        this.#id = 'X'+map.get(next)
+        map.set(this.#id, this)
+      }
+      map.get(used).add(this.#id)
+    }
+    
+    this.sub.forEach(e => e.fixPtrMap(map, logger))
   }
   
   /**

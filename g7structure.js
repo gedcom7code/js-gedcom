@@ -187,8 +187,20 @@ class G7Structure {
     this.sub.forEach(v => v.forEach(e => e.populateSchema(schma)))
   }
   
-  toGEDC(schma, ptrTargets) {
-    // FIX ME: implement this
+  toGEDC(schma, ptrTargets, sup) {
+    let tag = this.type
+    if (tag.includes(':')) tag = this.#lookup.tag(this.type)
+    if (tag[0] == '_' && schma.has(this.type) && tag != schma.get(this.type))
+      throw Error(`Schema lookup error: got ${tag}, expected ${schma.get(this.type)}`)
+    let gedc
+    if (this.payload === null || this.payload instanceof G7Structure) {
+      gedc = new GEDCStruct(tag, sup, this.payload, undefined, this.#id) // FIXME: no pointers appear
+    } else {
+      gedc = new GEDCStruct(tag, sup, undefined, this.payload?.toString?.(), this.#id)
+    }
+    if (!sup) ptrTargets.set(this, gedc)
+    this.sub?.forEach(v => v.forEach(e => e.toGEDC(schma, ptrTargets, gedc)))
+    return gedc
   }
   
   toJSON() {
@@ -317,7 +329,7 @@ class G7Dataset {
     const ans = [this.header.toGEDC(schma, ptrTargets)]
     this.records.forEach(v => v.forEach(e => ans.push(e.toGEDC(schma, ptrTargets))))
     ans.push(new GEDCStruct('TRLR'))
-    // FIX ME: resolve pointers
+    ans.forEach(e => e.fixPtrMap(ptrTargets, this.#lookup.err))
     return ans
   }
 
