@@ -13,7 +13,7 @@ It assumes you have correctly parsed bytes into a JavaScript string before proce
         - [x] With multiple dialects
     - [x] Manual creation of structures
     - [x] Tag-oriented JSON serializer/deserializer
-- [ ] Type-aware layer
+- [*] Type-aware layer
     - [x] Parse spec from <https://github.com/FamilySearch/GEDCOM-registries>
     - [x] Parse tag-oriented into type-aware
         - [x] Context-aware structure type
@@ -34,14 +34,38 @@ It assumes you have correctly parsed bytes into a JavaScript string before proce
         - [x] Error checking
             - [x] on request via `.validate()`
             - [ ] automatic partial checking on creation: payload types, superstructure not having too many of non-plural substructures
-    - [ ] Serialize to tag-oriented
-        - [ ] Schema deduction
-        - [ ] Serialization
+    - [*] Serialize to tag-oriented
+        - [*] Schema deduction
+        - [*] Serialization
     - [x] Type-oriented JSON serializer/deserializer
         - [x] Datatype serialization/deserialization
         - [x] Structure serialization/deserialization
-    
 
+So far, the testing has been limited to starting with maximal70.ged augmented with various extensions and verifying the following properties, mostly by hand, also checking that all warnings and errors issued are correct:
+
+```js
+gedc = GEDCStruct.fromString(maximal, g7ConfGEDC)
+maximal2 = gedc.map(e => e.toString('\n',-1,false)).join('')
+// assert(maximal2 == maximal)
+
+json_gedc = gedc.map(e=>e.toJSON())
+gedc2 = GEDCStruct.fromJSON(json)
+maximal3 = gedc2.map(e => e.toString('\n',-1,false)).join('')
+// assert(maximal3 == maximal)
+
+ged7 = G7Dataset.fromGEDC(gedc, g7validation)
+gedc3 = ged7.toGEDC()
+maximal4 = gedc3.map(e => e.toString('\n',-1,false)).join('')
+// assert(maximal4 == maximal modulo some reordering and normalization)
+
+json_ged7 = ged7.toJSON()
+ged72 = G7Dataset.fromJSON(json, g7validation)
+gedc4 = ged72.toGEDC()
+maximal5 = gedc4.map(e => e.toString('\n',-1,false)).join('')
+// assert(maximal5 == maximal4)
+```
+
+I've also done just a little ad-hoc testing to verify that if I create a G7Dataset programmatically it it populates its schema and otherwise serializes as expected.
 
 # GEDC parser/serializer
 

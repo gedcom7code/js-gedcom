@@ -91,7 +91,7 @@ class G7Structure {
   fixPointers(map) {
     if (this.xref) {
       if (map.has(this.xref.substr(1))) {
-        this.paylaod = map.get(this.xref.substr(1))
+        this.payload = map.get(this.xref.substr(1))
         this.payload?.#ref.add(this)
         if(this.payload && !this.payload.#id) this.payload.#id = this.xref.substr(1)
       } else {
@@ -190,6 +190,7 @@ class G7Structure {
   toGEDC(schma, ptrTargets, sup) {
     let tag = this.type
     if (tag.includes(':')) tag = this.#lookup.tag(this.type)
+    if (!tag || tag.includes(':')) throw Error("Failed to find tag for "+this.type)
     if (tag[0] == '_' && schma.has(this.type) && tag != schma.get(this.type))
       throw Error(`Schema lookup error: got ${tag}, expected ${schma.get(this.type)}`)
     let gedc

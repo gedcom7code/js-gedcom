@@ -110,15 +110,15 @@ class GEDCStruct {
       delete this.ptr
       if (this.payload) this.payload.#ref.push(this)
     } else if ('ptr' in this) {
-      logger?.(`pointer to undefined object`)
+      if (this.ptr !== null) logger?.(`pointer "${this.ptr}" to undefined object`)
       delete this.ptr
       this.payload = null
     }
     if (this.#ref.length > 0) { // need an ID
-      const used = Symbol.for('used')
-      const next = Symbol.for('next')
-      if (!(used in ids)) { map.set(used, new Set()); map.get(used).add('VOID') }
-      if (!(next in ids)) map.set(next, 0)
+      const used = GEDCStruct.usedObject//Symbol.for('used')
+      const next = GEDCStruct.nextObject//Symbol.for('next')
+      if (!map.has(used)) { map.set(used, new Set()); map.get(used).add('VOID') }
+      if (!map.has(next)) map.set(next, 0)
       if (!this.#id || map.get(used).has(this.#id)) {
         map.set(next, map.get(next) + 1)
         while ('X'+map.get(next) in ids) map.set(next, map.get(next) + 1)
@@ -130,6 +130,8 @@ class GEDCStruct {
     
     this.sub.forEach(e => e.fixPtrMap(map, logger))
   }
+  static usedObject = {}
+  static nextObject = {}
   
   /**
    * Serializes to GEDC string
