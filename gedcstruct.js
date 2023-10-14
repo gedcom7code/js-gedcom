@@ -11,7 +11,7 @@
  * Written by Luther Tychonievich, July 2023. Released to the public domain,
  * to be used freely for any purpose with or without acknowledgement.
  */
-export { GEDCStruct, g5ConfGEDC, g7ConfGEDC }
+export { GEDCStruct, g5ConfGEDC, g7ConfGEDC, GEDCToString }
 
 /**
  * A GEDC structure:
@@ -325,6 +325,7 @@ class GEDCStruct {
     records.querySelector = function(path) {
       return this.querySelectorAll(path).next().value
     }
+    records.toString = GEDCToString
     return records;
   }
   
@@ -349,6 +350,7 @@ class GEDCStruct {
       recs.querySelector = function(path) {
         return this.querySelectorAll(path).next().value
       }
+      if (!sup) recs.toString = GEDCToString
       return recs
     }
     const ans = new GEDCStruct(o.tag, sup, o.href, o.text, o.id)
@@ -398,6 +400,13 @@ class GEDCStruct {
   }
   
 }
+
+/** Serialization helper; add this as the toString of an array of GEDCStructs 
+ * as e.g. array.toString = GEDCToString
+ */
+function GEDCToString(newline) { return this.map(e => e.toString(newline||'\n',-1,false)).join(''); }
+
+
 
 /** GEDCOM 5.x-compatible configuration */
 const g5ConfGEDC = {

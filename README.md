@@ -45,7 +45,7 @@ So far, the testing has been limited to starting with maximal70.ged augmented wi
 
 ```js
 gedc = GEDCStruct.fromString(maximal, g7ConfGEDC)
-maximal2 = gedc.map(e => e.toString('\n',-1,false)).join('')
+maximal2 = gedc.toString()
 // assert(maximal2 == maximal)
 
 json_gedc = gedc.map(e=>e.toJSON())
@@ -55,13 +55,13 @@ maximal3 = gedc2.map(e => e.toString('\n',-1,false)).join('')
 
 ged7 = G7Dataset.fromGEDC(gedc, g7validation)
 gedc3 = ged7.toGEDC()
-maximal4 = gedc3.map(e => e.toString('\n',-1,false)).join('')
+maximal4 = gedc3.toString()
 // assert(maximal4 == maximal modulo some reordering and normalization)
 
 json_ged7 = ged7.toJSON()
 ged72 = G7Dataset.fromJSON(json, g7validation)
 gedc4 = ged72.toGEDC()
-maximal5 = gedc4.map(e => e.toString('\n',-1,false)).join('')
+maximal5 = gedc4.toString()
 // assert(maximal5 == maximal4)
 ```
 

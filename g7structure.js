@@ -1,6 +1,6 @@
 export { G7Structure, G7Dataset }
 import { G7Date, G7DateValue, G7Enum, G7Datatype, checkDatatype } from "./g7datatypes.js"
-import { GEDCStruct, g7ConfGEDC } from "./gedcstruct.js"
+import { GEDCStruct, g7ConfGEDC, GEDCToString } from "./gedcstruct.js"
 
 
 /**
@@ -331,6 +331,7 @@ class G7Dataset {
     this.records.forEach(v => v.forEach(e => ans.push(e.toGEDC(schma, ptrTargets))))
     ans.push(new GEDCStruct('TRLR'))
     ans.forEach(e => e.fixPtrMap(ptrTargets, this.#lookup.err))
+    ans.toString = GEDCToString
     return ans
   }
 
