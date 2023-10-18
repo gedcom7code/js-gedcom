@@ -228,3 +228,18 @@ it contains
 - `header`, a `G7Structure` with type <https://gedcom.io/terms/v7/HEAD>
 - `records`, which is exactly like G7Structure's `sub`
 
+# License
+
+This code is released under both the MIT and UNLICENSE.
+The dual licensing is motivated by the following observations:
+
+- I, Luther Tychonievich, would like to participate in a small bit of ideological activism by promoting the Unlicense's goal: to disclaim copyright monopoly interest.
+- I would also like as many people to use the code as possible. Since the Unlicense is not a proven or well known license, I also offer this code under the MIT license, which is ubiquitous and accepted by almost everyone.
+
+More specifically, this code and all its dependencies are compatible with this licensing choice. Any dependencies (direct and transitive) will always be limited to permissive licenses. This code will never depend on code that is not permissively licensed. This means rejecting any dependency that uses a copyleft license such as the GPL, LGPL, MPL or any of the Creative Commons ShareAlike licenses.
+
+
+# Contributing
+
+Reports of errors or gaps in the code are very welcome, preferably as [issues on github](https://github.com/gedcom7code/js-gedcom/issues).
+Pull requests extending functionality or fixing errors are also welcome.
