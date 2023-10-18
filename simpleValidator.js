@@ -24,7 +24,14 @@ window.validateFile = fileList => {
   fr.addEventListener('load', evt => {
     var data = evt.target.result
     console.log(data)
-    window.gedc = GEDCStruct.fromString(data, g7ConfGEDC, g7v.err)
+    try {
+      window.gedc = GEDCStruct.fromString(data, g7ConfGEDC, g7v.err)
+    } catch(error) {
+      addError(error.message)
+    }
+    if (!Array.isArray(window.gedc) || window.gedc.length == 0) {
+      addError("File does not appear to contain GEDCOM data")
+    }
     if (document.getElementById('errors').childElementCount > 0) {
       addWarning("Errors parsing syntax; version 7 structures not checked")
     } else {
