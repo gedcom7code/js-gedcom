@@ -13,11 +13,11 @@ const addWarning = (msg) => {
   document.getElementById('warnings').append(li)
 }
 window.validateFile = fileList => {
-  if (!window.g7vaidation) {
+  if (!window.g7validation) {
     addError("Failed to load GEDCOM 7 validation data from <a href='https://github.com/FamilySearch/GEDCOM-registries'>GEDCOM-registries/generated_files/g7validation.json</a>, which is required to perform validation")
     return
   }
-  window.g7v = await G7Lookups.make(g7validation)
+  window.g7v = new G7Lookups(g7validation)
   if (!window.g7v) {
     addError("Failed to parse GEDCOM 7 validation data from <a href='https://github.com/FamilySearch/GEDCOM-registries'>GEDCOM-registries/generated_files/g7validation.json</a>, which is required to perform validation")
     return
