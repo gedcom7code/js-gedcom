@@ -13,7 +13,7 @@ It assumes you have correctly parsed bytes into a JavaScript string before proce
         - [x] With multiple dialects
     - [x] Manual creation of structures
     - [x] Tag-oriented JSON serializer/deserializer
-- [*] Type-aware layer
+- [x] Type-aware layer
     - [x] Parse spec from <https://github.com/FamilySearch/GEDCOM-registries>
     - [x] Parse tag-oriented into type-aware
         - [x] Context-aware structure type
@@ -34,9 +34,9 @@ It assumes you have correctly parsed bytes into a JavaScript string before proce
         - [x] Error checking
             - [x] on request via `.validate()`
             - [ ] automatic partial checking on creation: payload types, superstructure not having too many of non-plural substructures
-    - [*] Serialize to tag-oriented
-        - [*] Schema deduction
-        - [*] Serialization
+    - [x] Serialize to tag-oriented
+        - [x] Schema deduction
+        - [x] Serialization
     - [x] Type-oriented JSON serializer/deserializer
         - [x] Datatype serialization/deserialization
         - [x] Structure serialization/deserialization
