@@ -5,6 +5,8 @@ which are handled by separate module files to facilitate uses which do not need 
 This repository does not currently handle different character sets.
 It assumes you have correctly parsed bytes into a JavaScript string before processing.
 
+To use this project as a FamilySearch GEDCOM 7 validator, visit <https://gedcom7code.github.io/js-gedcom/>.
+
 # Status
 
 - [x] Tag-oriented layer
