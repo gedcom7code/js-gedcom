@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>js-gedcom helper library</title>
+    <meta charset="utf-8">
+    <script type="module" src="simpleValidator.js"></script>
+    <style>
+      li { white-space: pre-wrap; margin-top: 1em; }
+      #errors:before { content: "Errors:"; font-weight: bold; margin-left:-2em; }
+      #warnings:before { content: "Warnings and suggestions:"; font-weight: bold; margin-left:-2em; }
+      #errors:empty:before { content: "No errors"; font-weight: normal; }
+      #warnings:empty:before { content: "No warnings"; font-weight: normal; }
+    </style>
+  </head>
+  <body>
+    <p>The js-gedcom project is an effort to provide both generic GEDC-format parsing and serialization and FamilySearch GEDCOM 7 specific functionality.</p>
+    <p>This page has a simple client-side demo FamilySearch GEDCOM 7 validator. Other programmatic features are available on the <a href="https://github.com/gedcom7code/js-gedcom">project page</a>.</p>
+    <p>To check a GEDCOM file against the FamilySearch GEDCOM 7 specification, pick the file below. The file will not be uploaded to any server: the check happens in your browser on your own computer and will work even if you disconnect from the Internet before you begin.</p>
+    
+    
+    <input type="file" onchange="validateFile(this.files)"/>
+    <ul id="errors"></ul>
+    <ul id="warnings"></ul>
+  </body>
+</html>
+

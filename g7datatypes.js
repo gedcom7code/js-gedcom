@@ -271,7 +271,10 @@ class G7DateValue {
       return
     }
     let m = /^(ABT|CAL|EST) (.*)$|^BET (.*) AND (.*)$|^BEF (.*)$|^AFT (.*)$|^FROM (.*) TO (.*)$|^FROM (.*)$|^TO (.*)$|^(.+)$/.exec(payload)
-    if (m[1]) {
+    if (!m) {
+      if (payload) lookup.err?.(`Invalid date ${JSON.stringify(payload)}`)
+      this.type = 'empty'
+    } else if (m[1]) {
       this.type = m[1]
       this.date = new G7Date(m[2], lookup)
     } else if (m[3]) {
