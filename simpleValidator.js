@@ -13,12 +13,21 @@ const addWarning = (msg) => {
   document.getElementById('warnings').append(li)
 }
 window.validateFile = fileList => {
-  document.getElementById('errors').innerHTML = ''
-  document.getElementById('warnings').innerHTML = ''
-  if (!window.g7v) {
+  if (!window.g7vaidation) {
     addError("Failed to load GEDCOM 7 validation data from <a href='https://github.com/FamilySearch/GEDCOM-registries'>GEDCOM-registries/generated_files/g7validation.json</a>, which is required to perform validation")
     return
   }
+  window.g7v = await G7Lookups.make(g7validation)
+  if (!window.g7v) {
+    addError("Failed to parse GEDCOM 7 validation data from <a href='https://github.com/FamilySearch/GEDCOM-registries'>GEDCOM-registries/generated_files/g7validation.json</a>, which is required to perform validation")
+    return
+  }
+
+  g7v.err = addError
+  g7v.warn = addWarning
+
+  document.getElementById('errors').innerHTML = ''
+  document.getElementById('warnings').innerHTML = ''
   if (fileList.length != 1) return
   var fr = new FileReader();
   fr.addEventListener('load', evt => {
@@ -43,8 +52,7 @@ window.validateFile = fileList => {
 
 
 window.addEventListener('load', async () => {
-  window.g7v = await G7Lookups.make('https://raw.githubusercontent.com/FamilySearch/GEDCOM-registries/main/generated_files/g7validation.json')
-  g7v.err = addError
-  g7v.warn = addWarning
+  const url = 'https://raw.githubusercontent.com/FamilySearch/GEDCOM-registries/main/generated_files/g7validation.json'
+  window.g7validation = await fetch(url).then(res => res.json())
 })
 
