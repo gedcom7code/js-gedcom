@@ -264,6 +264,30 @@ class G7Dataset {
   }
 
   /**
+   * Verify that
+   * - required substructures are present
+   * - singular substructures are not present more than once
+   * - each structure has either payload or substructures or both
+   * - payload matches spec
+   * - hard-code check for deprecated EXID without TYPE
+   *
+   * @return {Number} the number of errors found, or 0 if none found
+   */
+  validate() {
+    let errors = 0
+    if (!this.header) {
+      this.#lookup.err?.('Missing required https://gedcom.io/terms/v7/HEAD')
+      this.#lookup.err?.('Missing required https://gedcom.io/terms/v7/GEDC')
+      this.#lookup.err?.('Missing required https://gedcom.io/terms/v7/GEDC-VERS')
+      errors += 3
+    } else {
+      errors += ans.header.validate()
+    }
+    ans.records.forEach(a => a.forEach(r=> errors += r.validate()))
+    return errors
+  }
+
+  /**
    * Creates a record (or header).
    * @param {string} type - a URI if has a colon, else a tag
    * @param payload - payload of the record, either encoded as a string or parsed as an object
