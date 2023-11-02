@@ -15,6 +15,7 @@ To use this project as a FamilySearch GEDCOM 7 validator, visit <https://gedcom7
         - [x] With multiple dialects
     - [x] Manual creation of structures
     - [x] Tag-oriented JSON serializer/deserializer
+    - [x] `querySelector` and `querySelectorAll` accepting `"HEAD.GEDC"`-type tag paths
 - [x] Type-aware layer
     - [x] Parse spec from <https://github.com/FamilySearch/GEDCOM-registries>
     - [x] Parse tag-oriented into type-aware
@@ -42,6 +43,7 @@ To use this project as a FamilySearch GEDCOM 7 validator, visit <https://gedcom7
     - [x] Type-oriented JSON serializer/deserializer
         - [x] Datatype serialization/deserialization
         - [x] Structure serialization/deserialization
+    - [x] `find` and `findOrCreate` accepting arbitrarily-nested structure types and payload values (e.g. for finding a record with a given `EXID` and `EXID-TYPE`).
 
 So far, the testing has been limited to starting with maximal70.ged augmented with various extensions and verifying the following properties, mostly by hand, also checking that all warnings and errors issued are correct:
 

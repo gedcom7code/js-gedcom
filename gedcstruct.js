@@ -121,9 +121,8 @@ class GEDCStruct {
       if (!map.has(next)) map.set(next, 0)
       if (!this.#id || map.get(used).has(this.#id)) {
         map.set(next, map.get(next) + 1)
-        while ('X'+map.get(next) in ids) map.set(next, map.get(next) + 1)
+        while ('X'+map.get(next) in map.get(used)) map.set(next, map.get(next) + 1)
         this.#id = 'X'+map.get(next)
-        map.set(this.#id, this)
       }
       map.get(used).add(this.#id)
     }
@@ -145,7 +144,10 @@ class GEDCStruct {
     let level = 0
     for(let s = this.#sup; s; s = s.#sup) level += 1
     let ans = `${level} `
-    if (this.#ref.length > 0) ans += `@${this.#id}@ `
+    if (this.#ref.length > 0) {
+      if (!this.#id) console.warn("pointed to but no ID")
+      ans += `@${this.#id}@ `
+    }
     ans += this.tag
     if (this.payload instanceof GEDCStruct) {
       ans += ` @${this.payload.#id}@`+newline

@@ -50,7 +50,7 @@ class G7Structure {
     }
     if (payload instanceof G7Structure) {
       payload.#ref.add(this)
-      if(!payload.#id) payload.#id = String(Math.random()).replace(/0\./,'') // FIX ME
+      if(!payload.#id) payload.#id = this.#lookup.uniqueID()
     }
     this.#id = id
   }
@@ -103,7 +103,7 @@ class G7Structure {
       if (map.has(this.payload)) {
         this.payload = map.get(this.payload)
         this.payload.#ref.add(this)
-        if(!this.payload.#id) this.payload.#id = String(Math.random()).replace(/0\./,'') // FIX ME
+        if(!this.payload.#id) this.payload.#id = this.#lookup.uniqueID()
       } else if (this.payload instanceof GEDCStruct) {
         this.#lookup.err?.('v7 forbids pointers to substructures')
         this.payload = null
@@ -163,7 +163,7 @@ class G7Structure {
   populateSchema(schma) {
     
     // struct
-    this.#lookup.schemaPrep(this.type, 'struct', this.#sup.type || '', schma)
+    this.#lookup.schemaPrep(this.type, 'struct', this.#sup?.type || '', schma)
     
     // enum
     if (this.payload instanceof G7Enum)
@@ -232,7 +232,59 @@ class G7Structure {
     return ans
   }
 
+  /**
+   * Looks for a substructure of this structure that matches the given pattern.
+   * The first argument is the structure type of the structure to find;
+   * then the payload of the structure to find (or `-1` to match any payload);
+   * then the structure type of a substructure of the structure to find;
+   * then the payload of the substructure;
+   * then the structure type of a substructure of the substructure of the structure;
+   * and so on.
+   * 
+   * WARNING: The payload comparisons are done by converting to a string; this may give a false negative
+   * if a non-canonical string is provided as the argument, such as
+   * 
+   * - a date with calendar GREGORIAN
+   * - a date range or period with one blank calendar and one non-GREGORIAN calendar
+   * - a time with a 1-digit hour
+   * - an integer with leading zeros
+   * 
+   * @param {string} type - the URI of a structure type
+   * @param {any} payload - a payload value, or -1 to match any payload
+   * @param args - type, payload, type, payload, ... as long as desired
+   * @returns {G7Structure|null} - a substructure of `this` that matches the request, or null if none found
+   */
+  find(type, payload, ...args) {
+    if (!this.sub.has(type)) return null
+    if (args.length == 1 && Array.isArray(args[0])) args = args[0] // allow calling as find(type, payload, [args])
+    for(let candidate of this.sub.get(type)) {
+      if (payload !== -1 && payload !== candidate.payload && String(payload) != String(candidate.payload)) continue
+      if (args.length <= 0 || candidate.find.apply(candidate, args) !== null) return candidate
+    }
+    return null
+  }
+  
+  /**
+   * If {@link G7Structure#find} would return non-null with the provided arguments,
+   * this method is equivalent to that method.
+   * Otherwise, creates and returns a new substructure of this that matches the query.
+   * 
+   * @see G7Structure#find
+   * @returns {G7Structure} - the existing or newly-created structure
+   */
+  findOrCreate(type, payload, ...args) {
+    const found = this.find(type, payload, args)
+    if (found !== null) return found
 
+    const pltype = this.#lookup.payload(type)
+    let root = null
+    if (payload === -1) {
+      if (pltype.type == 'pointer') root = this.createSubstructure(type, null, pltype)
+      else root = this.createSubstructure(type, "")
+    } else root = this.createSubstructure(type, payload)
+    if (args.length > 0) this.findOrCreate.apply(root, args)
+    return root
+  }
 }
 
 
@@ -256,10 +308,23 @@ class G7Dataset {
    */
   constructor(lookup, skipHeader) {
     this.#lookup = lookup
+    if (!('_usedIDs' in this.#lookup)) {
+      this.#lookup._usedIDs = new Set()
+      this.#lookup._nextID = 0
+      this.#lookup.uniqueID = function(id) {
+        if (!id || this._usedIDs.has(id)) {
+          id = String(this._nextID++)
+          while(this._usedIDs.has(id))
+            id = String(this._nextID++)
+        }
+        this._usedIDs.add(id)
+        return id
+      }
+    }
     if (!skipHeader) {
       this.header = new G7Structure(lookup, 'https://gedcom.io/terms/v7/HEAD')
-      const g = new G7Structure(lookup, 'https://gedcom.io/terms/v7/GEDC', this.header)
-      const v = new G7Structure(lookup, 'https://gedcom.io/terms/v7/GEDC-VERS', g, '7.0')
+      const g = this.header.createSubstructure('https://gedcom.io/terms/v7/GEDC')
+      const v = g.createSubstructure('https://gedcom.io/terms/v7/GEDC-VERS', '7.0')
     }
   }
 
@@ -281,9 +346,9 @@ class G7Dataset {
       this.#lookup.err?.('Missing required https://gedcom.io/terms/v7/GEDC-VERS')
       errors += 3
     } else {
-      errors += ans.header.validate()
+      errors += this.header.validate()
     }
-    ans.records.forEach(a => a.forEach(r=> errors += r.validate()))
+    this.records.forEach(a => a.forEach(r=> errors += r.validate()))
     return errors
   }
 
@@ -323,7 +388,7 @@ class G7Dataset {
     const schma = new Map()
     this.header.populateSchema(schma)
     this.records.forEach(v => v.forEach(e => e.populateSchema(schma)))
-    if(schma.size == 0) this.header.sub.delete('https://gedcom.io/terms/v7/SCHMA')
+    if(schma.size <= 1) this.header.sub.delete('https://gedcom.io/terms/v7/SCHMA')
     else {
       let ss
       if (!this.header.sub.has('https://gedcom.io/terms/v7/SCHMA'))
@@ -335,7 +400,7 @@ class G7Dataset {
         if ('string' == typeof uri) {
           const payload = tag+' '+uri
           let found = false
-          for(let tdef of ss.sub.get('https://gedcom.io/terms/v7/TAG'))
+          for(let tdef of (ss.sub?.get('https://gedcom.io/terms/v7/TAG') || []))
             if (tdef.payload == payload) { found = true; break; }
           if (!found)
             ss.createSubstructure('https://gedcom.io/terms/v7/TAG', payload)
@@ -358,6 +423,10 @@ class G7Dataset {
     ans.toString = GEDCToString
     return ans
   }
+  /**
+   * Serializes the dataset into a GEDCOM 7 string
+   */
+  toString() { return this.toGEDC().toString() }
 
   /** Parse a GEDCOM string into a dataset
    * @param {string} str - the entire dataset as a GEDCOM string
@@ -417,5 +486,46 @@ class G7Dataset {
     ans.header.fixPointers(ptrs)
     ans.records.forEach((v,k) => v.forEach(e => e.fixPointers(ptrs)))
     return ans
+  }
+
+
+
+
+  /**
+   * Like {@link G7Structure#find} but for records instead of substructures
+   * 
+   * @param {string} type - the URI of a record type
+   * @param {any} payload - a payload value, or -1 to match any payload
+   * @param args - type, payload, type, payload, ... as long as desired
+   * @returns {G7Structure|null} - a record that matches the request, or null if none found
+   */
+  find(type, payload, ...args) {
+    if (!this.records.has(type)) return null
+    if (args.length == 1 && Array.isArray(args[0])) args = args[0] // allow calling as find(type, payload, [args])
+    for(let candidate of this.records.get(type)) {
+      if (payload !== -1 && payload !== candidate.payload && String(payload) != String(candidate.payload)) continue
+      if (args.length <= 0 || candidate.find.apply(candidate, args) !== null) return candidate
+    }
+    return null
+  }
+  
+  /**
+   * Like {@link G7Structure#findOrCreate} but for records instead of substructures
+   * 
+   * @see G7Dataset#find
+   * @returns {G7Structure} - the existing or newly-created record
+   */
+  findOrCreate(type, payload, ...args) {
+    const found = this.find(type, payload, args)
+    if (found !== null) return found
+
+    const pltype = this.#lookup.payload(type)
+    let root = null
+    if (payload === -1) {
+      if (pltype.type == 'pointer') root = this.createRecord(type, null, pltype)
+      else root = this.createRecord(type, "")
+    } else root = this.createRecord(type, payload)
+    if (args.length > 0) root.findOrCreate.apply(root, args)
+    return root
   }
 }
