@@ -59,10 +59,15 @@ window.addEventListener('load', async () => {
                   'https://gedcom.io/terms/v7/EXID-TYPE', 'https://example.com/')
     .findOrCreate('https://gedcom.io/terms/v7/CHIL', r1)
   // required symmetry: add a FAMC to match the CHIL 
-  r1.findOrCreate('https://gedcom.io/terms/v7/FAMC',
+  r1.findOrCreate('https://gedcom.io/terms/v7/INDI-FAMC',
                   g7.findOrCreate('https://gedcom.io/terms/v7/record-FAM', -1,
                                   'https://gedcom.io/terms/v7/EXID', 'my-family',
                                   'https://gedcom.io/terms/v7/EXID-TYPE', 'https://example.com/'))
+  
+  // add a relocated standard structure, just to show we can
+  sub.findOrCreate('https://gedcom.io/terms/v7/SUBM', sub)
+  // add a documented extension structure, just to show we can
+  sub.findOrCreate('https://example.com/Nonsense', 'Lorem ipsum')
   
   // validate that the data follows the validation rules
   g7.validate()

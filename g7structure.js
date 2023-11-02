@@ -190,6 +190,10 @@ class G7Structure {
   toGEDC(schma, ptrTargets, sup) {
     let tag = this.type
     if (tag.includes(':')) tag = this.#lookup.tag(this.type)
+    if (tag && tag[0] != '_') { // check for relocation
+      let expected = this.#lookup.g7.tagInContext.struct[this.#sup?.type || '']?.[this.type]
+      if (expected !== tag) tag = this.#lookup.tag(this.type, true) // relocated tag instead
+    }
     if (!tag || tag.includes(':')) throw Error("Failed to find tag for "+this.type)
     if (tag[0] == '_' && schma.has(this.type) && tag != schma.get(this.type))
       throw Error(`Schema lookup error: got ${tag}, expected ${schma.get(this.type)}`)

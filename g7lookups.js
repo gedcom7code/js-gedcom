@@ -330,10 +330,11 @@ class G7Lookups {
     }
   }
   /** Looks up the recommended tag to the URI.
+   * If the second argument is true, prefers extTag over stdTag
    * Defaults to URI if none.
    */
-  tag(uri) {
-    return this.g7.tag?.[uri] || this.#extTag[uri] || uri
+  tag(uri, extFirst) {
+    return (extFirst ? this.#extTag[uri] || this.g7.tag?.[uri] : this.g7.tag?.[uri] || this.#extTag[uri]) || uri
   }
 
   /** Looks up a list of required substrutures of a structure.
@@ -345,7 +346,7 @@ class G7Lookups {
   /**
    * A function to assist in creating a GEDCOM 7 SCHMA.
    * If given an extension tag, that shall be undocumented
-   * and any previous UIR-tag mappings using it will get a new tag.
+   * and any previous URI-tag mappings using it will get a new tag.
    * If given a URI in context, that shall be given a tag.
    * 
    * @param {string} tagOrURI - the tag or URI stored in the parsed data
@@ -384,6 +385,7 @@ class G7Lookups {
     // uri
 
     let tag1 = this.tag(type) // initial guess
+    if (tag1.includes(':')) tag1 = undefined
 
     let tag2 // registered tag
     if (kind == 'struct') tag2 = this.g7.tagInContext.struct[within]?.[type] || '_'
@@ -399,6 +401,7 @@ class G7Lookups {
     if (type in this.#extTag) {
       let tag = this.#extTag[type]
       schma.set(type, tag)
+      used.add(tag)
       return
     }
     
@@ -411,6 +414,7 @@ class G7Lookups {
         tag += i
       }
       schma.set(type, tag)
+      used.add(tag)
       this.addExtension(tag, type)
       return
     }
@@ -424,11 +428,12 @@ class G7Lookups {
         tag += i
       }
       schma.set(type, tag)
+      used.add(tag)
       this.addExtension(tag, type)
       return
     }
     
-    // case 4: registered but relocated
+    // case 5: registered but relocated
     if (tag1) {
       let tag = tag1
       if (tag == '_' || (this.#ext.has(tag) && this.#ext.get(tag) != type) || used.has(tag)) {
@@ -437,18 +442,20 @@ class G7Lookups {
         tag += i
       }
       schma.set(type, tag)
+      used.add(tag)
       this.addExtension(tag, type)
       return
     }
     
-    // case 5: unregistered, unknown URI
-    let tag = uriToTag(type) || '_EXT'
+    // case 6: unregistered, unknown URI
+    let tag = G7Lookups.uriToTag(type) || '_EXT'
     if (tag == '_' || this.#ext.has(tag) || used.has(tag)) {
       let i = 1
       while (this.#ext.has(tag+i) || used.has(tag+i)) i += 1
       tag += i
     }
     schma.set(type, tag)
+    used.add(tag)
     this.addExtension(tag, type)
     
   }
@@ -468,7 +475,7 @@ class G7Lookups {
     if (/[A-Z][A-Z_0-9]+$/.test(tail)) return '_'+/[A-Z][A-Z_0-9]+$/.exec(tail)[0]
     const bits = tail.split(/([_A-Z][A-Z0-9_]+)/g)
     if (bits.length === 3) return (bits[1][0] === '_'?'_':'') + bits[1]
-    if (/^[a-zA-Z0-9][-a-zA-Z0-9_]{1,14}$/.test(tail)) return '_'+tail.toUpperCase.replace(/[^A-Z0-9]/g, '_')
+    if (/^[a-zA-Z0-9][-a-zA-Z0-9_]{1,14}$/.test(tail)) return '_'+tail.toUpperCase().replace(/[^A-Z0-9]/g, '_')
     return undefined
   }
 }
