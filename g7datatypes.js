@@ -185,7 +185,7 @@ class G7Age {
     return ans.trim()
   }
   
-  isEmpty() { return years === undefined && months === undefined && weeks === undefined && days === undefined }
+  isEmpty() { return this.years === undefined && this.months === undefined && this.weeks === undefined && this.days === undefined }
 }
 
 /**
