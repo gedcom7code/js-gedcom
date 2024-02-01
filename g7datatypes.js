@@ -352,7 +352,7 @@ class G7Time {
       })
       return
     }
-    let m = /^([01]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9](?:[.][0-9]+)))?(?:(Z))?$/.exec(payload)
+    let m = /^([01]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9](?:[.][0-9]+)?))?(?:(Z))?$/.exec(payload)
     if (!m) {
       lookup.err?.(`Invalid time: ${JSON.stringify(payload)}`)
       this.hour = 0
