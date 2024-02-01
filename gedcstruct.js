@@ -425,7 +425,7 @@ const g5ConfGEDC = {
 const g7ConfGEDC = {
   len: -1,
   tag: /^([A-Z]|_[0-9_A-Z])[0-9_A-Z]*$/u,
-  xref: /^([A-Z]|_[0-9_A-Z])[0-9_A-Z]*$/u,
+  xref: /^[A-Z0-9_]+$/u,
   linesep: /^(\r\n?|\n\r?)$/,
   delim: /^ $/,
   payload: /^.+$/,
